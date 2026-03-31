@@ -51,12 +51,26 @@
         "status": { "type": "string", "enum": ["pending", "paid"] }
       },
       "required": ["appointmentId", "patientId", "amount", "status"]
+    },
+    "Expert": {
+      "title": "Expert",
+      "description": "A staff member or dentist listed as an expert in the clinic.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "bio": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["name", "role", "bio"]
     }
   },
   "firestore": {
     "/users/{uid}": { "schema": "User", "description": "User profiles" },
     "/appointments/{id}": { "schema": "Appointment", "description": "Scheduled appointments" },
     "/clinical_records/{id}": { "schema": "ClinicalRecord", "description": "Patient medical history" },
-    "/billing/{id}": { "schema": "Billing", "description": "Financial records" }
+    "/billing/{id}": { "schema": "Billing", "description": "Financial records" },
+    "/experts/{id}": { "schema": "Expert", "description": "Expert profiles for the public website" }
   }
 }

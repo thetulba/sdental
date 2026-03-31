@@ -55,6 +55,8 @@ import {
   query, 
   where, 
   addDoc, 
+  deleteDoc,
+  getDocs,
   Timestamp,
   orderBy
 } from 'firebase/firestore';
@@ -102,6 +104,15 @@ interface Billing {
   status: 'pending' | 'paid';
 }
 
+interface Expert {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  photoURL?: string;
+  order: number;
+}
+
 // --- Context ---
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -109,6 +120,7 @@ interface AuthContextType {
   loading: boolean;
   login: () => Promise<void>;
   signOut: () => Promise<void>;
+  isLoggingIn: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -124,6 +136,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -158,10 +171,22 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async () => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
     try {
       await loginWithGoogle();
-    } catch (error) {
-      console.error("Login Error:", error);
+    } catch (error: any) {
+      if (error.code === 'auth/popup-blocked') {
+        alert('The login popup was blocked by your browser. Please allow popups for this site and try again.');
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        console.log('Login popup request was cancelled.');
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        console.log('Login popup was closed by the user.');
+      } else {
+        console.error("Login Error:", error);
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -174,7 +199,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, signOut, isLoggingIn }}>
       {children}
     </AuthContext.Provider>
   );
@@ -185,7 +210,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
 const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScreen: Screen, setScreen: (s: Screen) => void, logo: string | null, onOpenSettings: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, login, signOut } = useAuth();
+  const { user, login, signOut, isLoggingIn } = useAuth();
   const { t, i18n } = useTranslation();
 
   useEffect(() => {
@@ -295,10 +320,18 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
           ) : (
             <button 
               onClick={login}
-              className="bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+              disabled={isLoggingIn}
+              className={cn(
+                "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all hover:scale-105 active:scale-95 flex items-center gap-2",
+                isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
+              )}
             >
-              <Users className="w-4 h-4" />
-              {t('nav.signIn')}
+              {isLoggingIn ? (
+                <Sparkles className="w-4 h-4 animate-spin" />
+              ) : (
+                <Users className="w-4 h-4" />
+              )}
+              {isLoggingIn ? t('nav.signingIn') || 'Signing in...' : t('nav.signIn')}
             </button>
           )}
         </div>
@@ -470,9 +503,20 @@ const PatientDashboard = () => {
   );
 };
 
+const INITIAL_EXPERTS = [
+  { name: 'Dr. Mohamed Ahmed Tulba', role: 'Consultant Orthodontist', bio: 'Specializing in digital smile design with over 12 years of international experience.', order: 0 },
+  { name: 'Dr. Michael Chen', role: 'Implant Specialist', bio: 'Expert in minimally invasive implantology and full-mouth reconstruction.', order: 1 },
+  { name: 'Dr. Elena Rossi', role: 'Orthodontist', bio: 'Certified Invisalign Diamond provider focusing on functional aesthetics.', order: 2 },
+  { name: 'Dr. Sarah Johnson', role: 'Aesthetic Dentist', bio: 'Passionate about creating natural-looking smile transformations.', order: 3 },
+  { name: 'Dr. David Lee', role: 'Endodontist', bio: 'Specialist in root canal therapy and microscopic dentistry.', order: 4 },
+  { name: 'Dr. Anna Smith', role: 'Pediatric Dentist', bio: 'Dedicated to providing gentle and fun dental care for children.', order: 5 },
+];
+
 const StaffDashboard = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [experts, setExperts] = useState<Expert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'appointments' | 'experts'>('appointments');
 
   useEffect(() => {
     const q = query(collection(db, 'appointments'), orderBy('startTime', 'desc'));
@@ -480,6 +524,27 @@ const StaffDashboard = () => {
       setAppointments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment)));
       setLoading(false);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'appointments'));
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'experts'), orderBy('order', 'asc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expert));
+      
+      // Auto-seed if empty (Staff/Admin only)
+      if (snapshot.empty) {
+        try {
+          for (const exp of INITIAL_EXPERTS) {
+            await addDoc(collection(db, 'experts'), exp);
+          }
+        } catch (error) {
+          console.error("Auto-seeding failed:", error);
+        }
+      }
+
+      setExperts(data);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'experts'));
     return unsubscribe;
   }, []);
 
@@ -491,6 +556,16 @@ const StaffDashboard = () => {
     }
   };
 
+  const seedExperts = async () => {
+    try {
+      for (const exp of INITIAL_EXPERTS) {
+        await addDoc(collection(db, 'experts'), exp);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'experts');
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -498,61 +573,291 @@ const StaffDashboard = () => {
           <h2 className="text-3xl font-headline">Clinic Operations</h2>
           <p className="text-on-surface-variant">Manage the master calendar and patient check-ins.</p>
         </div>
-        <button className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2">
-          <Plus className="w-5 h-5" />
-          New Appointment
+        <div className="flex gap-4">
+          {experts.length === 0 && (
+            <button 
+              onClick={seedExperts}
+              className="bg-surface-container text-primary px-6 py-3 rounded-2xl font-bold flex items-center gap-2"
+            >
+              Seed 6 Experts
+            </button>
+          )}
+          <button className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2">
+            <Plus className="w-5 h-5" />
+            New Appointment
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-4 border-b border-surface-variant">
+        <button 
+          onClick={() => setTab('appointments')}
+          className={cn("pb-4 px-4 font-bold transition-all", tab === 'appointments' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+        >
+          Appointments
+        </button>
+        <button 
+          onClick={() => setTab('experts')}
+          className={cn("pb-4 px-4 font-bold transition-all", tab === 'experts' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+        >
+          Manage Experts
         </button>
       </div>
 
-      <div className="bg-white rounded-[32px] border border-surface-variant overflow-hidden">
-        <div className="p-6 border-b border-surface-variant flex items-center justify-between">
-          <h3 className="font-headline text-xl">Today's Schedule</h3>
-          <div className="flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-xl">
-            <Search className="w-4 h-4 text-on-surface-variant" />
-            <input type="text" placeholder="Search patients..." className="bg-transparent border-none outline-none text-sm" />
+      {tab === 'appointments' ? (
+        <div className="bg-white rounded-[32px] border border-surface-variant overflow-hidden">
+          <div className="p-6 border-b border-surface-variant flex items-center justify-between">
+            <h3 className="font-headline text-xl">Today's Schedule</h3>
+            <div className="flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-xl">
+              <Search className="w-4 h-4 text-on-surface-variant" />
+              <input type="text" placeholder="Search patients..." className="bg-transparent border-none outline-none text-sm" />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-surface-container-low text-xs uppercase tracking-wider font-bold text-on-surface-variant">
+                <tr>
+                  <th className="px-6 py-4">Time</th>
+                  <th className="px-6 py-4">Patient</th>
+                  <th className="px-6 py-4">Dentist</th>
+                  <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-variant">
+                {appointments.map(a => (
+                  <tr key={a.id} className="hover:bg-surface-container-low transition-colors">
+                    <td className="px-6 py-4 text-sm font-bold">{format(a.startTime.toDate(), 'p')}</td>
+                    <td className="px-6 py-4 text-sm">{a.patientName}</td>
+                    <td className="px-6 py-4 text-sm">{a.dentistName}</td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold",
+                        a.type === 'emergency' ? "bg-red-100 text-red-700" : "bg-surface-container text-on-surface-variant"
+                      )}>
+                        {a.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <select 
+                        value={a.status}
+                        onChange={(e) => handleStatusUpdate(a.id, e.target.value as Appointment['status'])}
+                        className="text-xs font-bold bg-surface-container-low border border-surface-variant rounded-lg px-2 py-1 outline-none"
+                      >
+                        <option value="booked">Booked</option>
+                        <option value="checked-in">Checked In</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-surface-container-low text-xs uppercase tracking-wider font-bold text-on-surface-variant">
-              <tr>
-                <th className="px-6 py-4">Time</th>
-                <th className="px-6 py-4">Patient</th>
-                <th className="px-6 py-4">Dentist</th>
-                <th className="px-6 py-4">Type</th>
-                <th className="px-6 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-variant">
-              {appointments.map(a => (
-                <tr key={a.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-6 py-4 text-sm font-bold">{format(a.startTime.toDate(), 'p')}</td>
-                  <td className="px-6 py-4 text-sm">{a.patientName}</td>
-                  <td className="px-6 py-4 text-sm">{a.dentistName}</td>
-                  <td className="px-6 py-4">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-xs font-bold",
-                      a.type === 'emergency' ? "bg-red-100 text-red-700" : "bg-surface-container text-on-surface-variant"
-                    )}>
-                      {a.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <select 
-                      value={a.status}
-                      onChange={(e) => handleStatusUpdate(a.id, e.target.value as Appointment['status'])}
-                      className="text-xs font-bold bg-surface-container-low border border-surface-variant rounded-lg px-2 py-1 outline-none"
-                    >
-                      <option value="booked">Booked</option>
-                      <option value="checked-in">Checked In</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      ) : (
+        <ExpertManagement experts={experts} />
+      )}
+    </div>
+  );
+};
+
+const ExpertManagement = ({ experts }: { experts: Expert[] }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<Partial<Expert>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      if (editingId) {
+        const { id, ...updateData } = form as Expert;
+        await setDoc(doc(db, 'experts', editingId), updateData, { merge: true });
+      } else {
+        await addDoc(collection(db, 'experts'), { ...form, order: experts.length });
+      }
+      setEditingId(null);
+      setForm({});
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'experts');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to remove this expert?')) return;
+    try {
+      await deleteDoc(doc(db, 'experts', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `experts/${id}`);
+    }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setForm({ ...form, photoURL: reader.result as string });
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid lg:grid-cols-5 gap-8">
+        <div className="lg:col-span-2 bg-white p-8 rounded-[32px] border border-surface-variant shadow-sm h-fit sticky top-24">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-headline text-xl">{editingId ? 'Edit Profile' : 'Add Expert'}</h3>
+            {editingId && (
+              <button 
+                onClick={() => { setEditingId(null); setForm({}); }}
+                className="text-xs font-bold text-primary hover:underline"
+              >
+                Switch to Add New
+              </button>
+            )}
+          </div>
+          
+          <form onSubmit={handleSave} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Full Name</label>
+              <input 
+                required
+                placeholder="e.g. Dr. Jane Doe"
+                value={form.name || ''} 
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary transition-all"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Professional Title</label>
+              <input 
+                required
+                placeholder="e.g. Orthodontist Specialist"
+                value={form.role || ''} 
+                onChange={e => setForm({ ...form, role: e.target.value })}
+                className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary transition-all"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Biography</label>
+              <textarea 
+                required
+                placeholder="Brief professional background..."
+                value={form.bio || ''} 
+                onChange={e => setForm({ ...form, bio: e.target.value })}
+                className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary h-24 resize-none transition-all"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Profile Photo</label>
+              <div className="flex items-center gap-6 p-4 bg-surface-container-low rounded-2xl border border-dashed border-surface-variant">
+                <div className="w-20 h-20 bg-surface-container rounded-2xl overflow-hidden border border-surface-variant flex-shrink-0 shadow-inner">
+                  {form.photoURL ? (
+                    <img src={form.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
+                      <Users className="w-8 h-8 opacity-20" />
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="inline-block bg-primary text-white px-4 py-2 rounded-lg text-xs font-bold cursor-pointer hover:bg-primary-container transition-all shadow-sm">
+                    {form.photoURL ? 'Change Photo' : 'Upload Photo'}
+                    <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+                  </label>
+                  <p className="text-[10px] text-on-surface-variant">JPG, PNG or WebP. Max 2MB.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 pt-4">
+              <button 
+                type="submit" 
+                disabled={isSaving}
+                className="flex-grow bg-primary text-white py-4 rounded-2xl font-bold shadow-lg hover:shadow-primary/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSaving && <Sparkles className="w-4 h-4 animate-spin" />}
+                {editingId ? 'Save Changes' : 'Add to Team'}
+              </button>
+              {(editingId || form.name || form.role || form.bio || form.photoURL) && (
+                <button 
+                  type="button" 
+                  onClick={() => { setEditingId(null); setForm({}); }}
+                  className="px-6 bg-surface-container text-on-surface py-4 rounded-2xl font-bold hover:bg-surface-container-high transition-all"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+
+        <div className="lg:col-span-3 space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="font-headline text-2xl">Our Experts</h3>
+            <span className="text-xs font-bold bg-surface-container px-3 py-1 rounded-full text-on-surface-variant">
+              {experts.length} Total
+            </span>
+          </div>
+          
+          <div className="grid gap-4">
+            {experts.map(exp => (
+              <div 
+                key={exp.id} 
+                className={cn(
+                  "bg-white p-5 rounded-[24px] border transition-all flex items-center gap-5 group cursor-pointer",
+                  editingId === exp.id ? "border-primary ring-1 ring-primary shadow-md" : "border-surface-variant hover:border-primary/50 hover:shadow-sm"
+                )}
+                onClick={() => { setEditingId(exp.id); setForm(exp); }}
+              >
+                <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 shadow-sm border border-surface-variant">
+                  <img 
+                    src={exp.photoURL || "https://images.unsplash.com/photo-1594824476967-48c8b964273f?q=80&w=2070&auto=format&fit=crop"} 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer" 
+                  />
+                </div>
+                <div className="flex-grow min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="font-headline text-lg truncate">{exp.name}</div>
+                    {editingId === exp.id && <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />}
+                  </div>
+                  <div className="text-sm text-primary font-bold tracking-tight uppercase">{exp.role}</div>
+                  <p className="text-xs text-on-surface-variant line-clamp-1 mt-1">{exp.bio}</p>
+                </div>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setEditingId(exp.id); setForm(exp); }}
+                    className="p-3 bg-surface-container-low hover:bg-primary/10 text-primary rounded-xl transition-colors"
+                    title="Edit Profile"
+                  >
+                    <Settings className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDelete(exp.id); }}
+                    className="p-3 bg-surface-container-low hover:bg-red-50 text-red-600 rounded-xl transition-colors"
+                    title="Remove Expert"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            
+            {experts.length === 0 && (
+              <div className="text-center py-20 bg-surface-container-low rounded-[32px] border border-dashed border-surface-variant">
+                <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                <p className="text-on-surface-variant font-medium">No experts found. Add your first team member!</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -834,26 +1139,22 @@ const Services = () => {
 
 const ExpertsScreen = () => {
   const { t } = useTranslation();
-  const experts = [
-    {
-      name: t('experts.drSarah.name'),
-      role: t('experts.drSarah.role'),
-      image: "/dr-tulba.jpg",
-      bio: t('experts.drSarah.bio')
-    },
-    {
-      name: t('experts.drMichael.name'),
-      role: t('experts.drMichael.role'),
-      image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=2070&auto=format&fit=crop",
-      bio: t('experts.drMichael.bio')
-    },
-    {
-      name: t('experts.drElena.name'),
-      role: t('experts.drElena.role'),
-      image: "https://images.unsplash.com/photo-1594824476967-48c8b964273f?q=80&w=2070&auto=format&fit=crop",
-      bio: t('experts.drElena.bio')
-    }
-  ];
+  const [experts, setExperts] = useState<Expert[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, 'experts'), orderBy('order', 'asc'));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expert));
+      setExperts(data);
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'experts'));
+    return unsubscribe;
+  }, []);
+
+  if (loading) return <div className="pt-32 pb-20 flex items-center justify-center min-h-[50vh]"><Sparkles className="w-8 h-8 animate-spin text-primary" /></div>;
+
+  const displayExperts = experts.length > 0 ? experts : INITIAL_EXPERTS.map((e, i) => ({ ...e, id: `initial-${i}` } as Expert));
 
   return (
     <div className="pt-32 pb-20">
@@ -863,9 +1164,9 @@ const ExpertsScreen = () => {
           <p className="text-on-surface-variant text-lg">{t('experts.subtitle')}</p>
         </div>
         <div className="grid md:grid-cols-3 gap-12">
-          {experts.map((exp, i) => (
+          {displayExperts.map((exp, i) => (
             <motion.div 
-              key={i}
+              key={exp.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
@@ -873,7 +1174,7 @@ const ExpertsScreen = () => {
             >
               <div className="aspect-[3/4] rounded-[32px] overflow-hidden mb-6 shadow-lg">
                 <img 
-                  src={exp.image} 
+                  src={exp.photoURL || "https://images.unsplash.com/photo-1594824476967-48c8b964273f?q=80&w=2070&auto=format&fit=crop"} 
                   alt={exp.name} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   referrerPolicy="no-referrer"
