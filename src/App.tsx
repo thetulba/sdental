@@ -1940,7 +1940,7 @@ const Footer = ({ logo }: { logo: string | null }) => {
 
 // --- Main App ---
 
-export default function App() {
+function MainContent() {
   const [screen, setScreen] = useState<Screen>('home');
   const [logo, setLogo] = useState<string | null>(() => localStorage.getItem('app-logo'));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -1954,145 +1954,150 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <div className="min-h-screen flex flex-col" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
-        <Navbar activeScreen={screen} setScreen={setScreen} logo={logo} onOpenSettings={() => setIsSettingsOpen(true)} />
-        
-        <main className="flex-grow">
-          <AnimatePresence mode="wait">
-            {screen === 'home' && (
-              <motion.div
-                key="home"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <Hero onBook={() => setScreen('booking')} />
-                <Stats />
-                <Services />
-                
-                {/* Tech Spotlight Section */}
-                <section className="py-32 bg-on-surface text-white overflow-hidden">
-                  <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
-                    <div className="relative">
-                      <div className="aspect-square rounded-[40px] overflow-hidden">
-                        <img 
-                          src="https://images.unsplash.com/photo-1606811841660-1b5168c34714?q=80&w=2070&auto=format&fit=crop" 
-                          alt="Advanced Tech" 
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                      <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
+    <div className="min-h-screen flex flex-col" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+      <Navbar activeScreen={screen} setScreen={setScreen} logo={logo} onOpenSettings={() => setIsSettingsOpen(true)} />
+      
+      <main className="flex-grow">
+        <AnimatePresence mode="wait">
+          {screen === 'home' && (
+            <motion.div
+              key="home"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <Hero onBook={() => setScreen('booking')} />
+              <Stats />
+              <Services />
+              
+              {/* Tech Spotlight Section */}
+              <section className="py-32 bg-on-surface text-white overflow-hidden">
+                <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
+                  <div className="relative">
+                    <div className="aspect-square rounded-[40px] overflow-hidden">
+                      <img 
+                        src="https://images.unsplash.com/photo-1606811841660-1b5168c34714?q=80&w=2070&auto=format&fit=crop" 
+                        alt="Advanced Tech" 
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
-                    <div>
-                      <div className="text-primary font-bold mb-4 flex items-center gap-2">
-                        <div className="w-8 h-[2px] bg-primary" />
-                        {t('tech.badge')}
-                      </div>
-                      <h2 className="font-headline text-4xl md:text-5xl mb-8 leading-tight">
-                        {t('tech.title')}
-                      </h2>
-                      <p className="text-white/60 text-lg mb-10 leading-relaxed">
-                        {t('tech.desc')}
-                      </p>
-                      <ul className="space-y-4">
-                        {(t('tech.items', { returnObjects: true }) as string[]).map((item, i) => (
-                          <li key={i} className="flex items-center gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-primary" />
-                            <span className="font-medium">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
                   </div>
-                </section>
-
-                {/* Testimonials */}
-                <section className="py-32">
-                  <div className="max-w-7xl mx-auto px-6">
-                     <div className="text-center mb-20">
-                      <h2 className="font-headline text-4xl md:text-5xl mb-6">{t('testimonials.title')}</h2>
-                      <p className="text-on-surface-variant max-w-2xl mx-auto text-lg">
-                        {t('testimonials.subtitle')}
-                      </p>
+                  <div>
+                    <div className="text-primary font-bold mb-4 flex items-center gap-2">
+                      <div className="w-8 h-[2px] bg-primary" />
+                      {t('tech.badge')}
                     </div>
-                    <div className="grid md:grid-cols-3 gap-8">
-                      {(t('testimonials.items', { returnObjects: true }) as any[]).map((t_item, i) => (
-                        <div key={i} className="p-10 bg-surface-container-low rounded-[32px] border border-surface-variant">
-                          <div className="flex text-yellow-500 mb-6">
-                            {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-current" />)}
+                    <h2 className="font-headline text-4xl md:text-5xl mb-8 leading-tight">
+                      {t('tech.title')}
+                    </h2>
+                    <p className="text-white/60 text-lg mb-10 leading-relaxed">
+                      {t('tech.desc')}
+                    </p>
+                    <ul className="space-y-4">
+                      {(t('tech.items', { returnObjects: true }) as string[]).map((item, i) => (
+                        <li key={i} className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-primary" />
+                          <span className="font-medium">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* Testimonials */}
+              <section className="py-32">
+                <div className="max-w-7xl mx-auto px-6">
+                   <div className="text-center mb-20">
+                    <h2 className="font-headline text-4xl md:text-5xl mb-6">{t('testimonials.title')}</h2>
+                    <p className="text-on-surface-variant max-w-2xl mx-auto text-lg">
+                      {t('testimonials.subtitle')}
+                    </p>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-8">
+                    {(t('testimonials.items', { returnObjects: true }) as any[]).map((t_item, i) => (
+                      <div key={i} className="p-10 bg-surface-container-low rounded-[32px] border border-surface-variant">
+                        <div className="flex text-yellow-500 mb-6">
+                          {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-current" />)}
+                        </div>
+                        <p className="text-lg italic text-on-surface mb-8">"{t_item.text}"</p>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-surface-variant overflow-hidden">
+                            <img src={`https://i.pravatar.cc/100?u=${t_item.name}`} alt={t_item.name} referrerPolicy="no-referrer" />
                           </div>
-                          <p className="text-lg italic text-on-surface mb-8">"{t_item.text}"</p>
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-surface-variant overflow-hidden">
-                              <img src={`https://i.pravatar.cc/100?u=${t_item.name}`} alt={t_item.name} referrerPolicy="no-referrer" />
-                            </div>
-                            <div>
-                              <div className="font-bold">{t_item.name}</div>
-                              <div className="text-xs text-on-surface-variant uppercase tracking-wider">{t_item.role}</div>
-                            </div>
+                          <div>
+                            <div className="font-bold">{t_item.name}</div>
+                            <div className="text-xs text-on-surface-variant uppercase tracking-wider">{t_item.role}</div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                </section>
-
-                {/* Final CTA */}
-                <section className="py-20 px-6">
-                  <div className="max-w-7xl mx-auto bg-primary-gradient rounded-[48px] p-12 md:p-24 text-center text-white relative overflow-hidden shadow-2xl">
-                    <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
-                      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
-                    </div>
-                    <h2 className="font-headline text-4xl md:text-6xl mb-8 relative z-10">{t('cta.title')}</h2>
-                    <p className="text-white/80 text-lg mb-12 max-w-xl mx-auto relative z-10">
-                      {t('cta.subtitle')}
-                    </p>
-                    <button 
-                      onClick={() => setScreen('booking')}
-                      className="bg-white text-primary px-10 py-5 rounded-2xl font-bold text-lg shadow-xl hover:scale-105 transition-all relative z-10"
-                    >
-                      {t('cta.button')}
-                    </button>
-                  </div>
-                </section>
-              </motion.div>
-            )}
-
-            {screen === 'experts' && <ExpertsScreen />}
-            {screen === 'portfolio' && <PortfolioScreen />}
-            {screen === 'booking' && <BookingScreen />}
-            
-            {screen === 'dashboard' && (
-              <div className="pt-32 pb-20 bg-surface-container-low min-h-screen">
-                <div className="max-w-7xl mx-auto px-6">
-                  {!user ? <Login /> : <DashboardRouter />}
                 </div>
+              </section>
+
+              {/* Final CTA */}
+              <section className="py-20 px-6">
+                <div className="max-w-7xl mx-auto bg-primary-gradient rounded-[48px] p-12 md:p-24 text-center text-white relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
+                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
+                  </div>
+                  <h2 className="font-headline text-4xl md:text-6xl mb-8 relative z-10">{t('cta.title')}</h2>
+                  <p className="text-white/80 text-lg mb-12 max-w-xl mx-auto relative z-10">
+                    {t('cta.subtitle')}
+                  </p>
+                  <button 
+                    onClick={() => setScreen('booking')}
+                    className="bg-white text-primary px-10 py-5 rounded-2xl font-bold text-lg shadow-xl hover:scale-105 transition-all relative z-10"
+                  >
+                    {t('cta.button')}
+                  </button>
+                </div>
+              </section>
+            </motion.div>
+          )}
+
+          {screen === 'experts' && <ExpertsScreen />}
+          {screen === 'portfolio' && <PortfolioScreen />}
+          {screen === 'booking' && <BookingScreen />}
+          
+          {screen === 'dashboard' && (
+            <div className="pt-32 pb-20 bg-surface-container-low min-h-screen">
+              <div className="max-w-7xl mx-auto px-6">
+                {!user ? <Login /> : <DashboardRouter />}
               </div>
-            )}
-          </AnimatePresence>
-        </main>
+            </div>
+          )}
+        </AnimatePresence>
+      </main>
 
-        <Footer logo={logo} />
+      <Footer logo={logo} />
 
-        {/* Settings Modal */}
-        <SettingsModal 
-          isOpen={isSettingsOpen} 
-          onClose={() => setIsSettingsOpen(false)} 
-          logo={logo} 
-          setLogo={(l) => {
-            setLogo(l);
-            if (l) localStorage.setItem('app-logo', l);
-            else localStorage.removeItem('app-logo');
-          }} 
-        />
-      </div>
-    </AuthProvider>
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        logo={logo} 
+        setLogo={(l) => {
+          setLogo(l);
+          if (l) localStorage.setItem('app-logo', l);
+          else localStorage.removeItem('app-logo');
+        }} 
+      />
+    </div>
   );
 }
 
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainContent />
+    </AuthProvider>
+  );
+}
 const DashboardRouter = () => {
   const { profile, loading } = useAuth();
 

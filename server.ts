@@ -1,25 +1,36 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { fileURLToPath } from "url";
+
+console.log("Server module loading...");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Firebase Admin
-// In Cloud Run, it will use the default service account
-admin.initializeApp({
-  projectId: "gen-lang-client-0468371419",
-});
-
-const db = admin.firestore();
-const auth = admin.auth();
-
 async function startServer() {
+  console.log("Starting server function called...");
   const app = express();
   const PORT = 3000;
 
+  try {
+    // Initialize Firebase Admin
+    if (admin.apps.length === 0) {
+      console.log("Initializing Firebase Admin with project ID:", "gen-lang-client-0468371419");
+      admin.initializeApp({
+        projectId: "gen-lang-client-0468371419",
+      });
+      console.log("Firebase Admin initialized successfully.");
+    }
+  } catch (error) {
+    console.error("Firebase Admin initialization failed:", error);
+  }
+
+  const db = admin.firestore();
+  const auth = admin.auth();
+
+  console.log("Express middleware setup...");
   app.use(express.json());
 
   // API Routes
@@ -78,7 +89,12 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log("Server is ready to handle requests.");
   });
 }
 
-startServer();
+console.log("Calling startServer()...");
+startServer().catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
+});
