@@ -23,7 +23,10 @@ import {
   Stethoscope,
   HeartPulse,
   Award,
-  Users
+  Users,
+  Settings,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -33,7 +36,7 @@ type Screen = 'home' | 'experts' | 'portfolio' | 'booking';
 
 // --- Components ---
 
-const Navbar = ({ activeScreen, setScreen }: { activeScreen: Screen, setScreen: (s: Screen) => void }) => {
+const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScreen: Screen, setScreen: (s: Screen) => void, logo: string | null, onOpenSettings: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -55,16 +58,32 @@ const Navbar = ({ activeScreen, setScreen }: { activeScreen: Screen, setScreen: 
       isScrolled ? "glass-nav shadow-sm py-3" : "bg-transparent"
     )}>
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div 
-          className="flex items-center gap-2 cursor-pointer group"
-          onClick={() => setScreen('home')}
-        >
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-headline text-xl shadow-lg group-hover:scale-105 transition-transform">
-            S
+        <div className="flex items-center gap-4">
+          <div 
+            className="relative group/logo cursor-pointer"
+            onClick={onOpenSettings}
+          >
+            {logo ? (
+              <img src={logo} alt="Logo" className="w-10 h-10 object-contain transition-transform group-hover/logo:scale-110" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg group-hover/logo:scale-110 transition-all duration-300 relative overflow-hidden">
+                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/logo:opacity-100 transition-opacity" />
+                <Sparkles className="w-6 h-6" />
+              </div>
+            )}
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full shadow-sm flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity border border-surface-variant">
+              <Settings className="w-2.5 h-2.5 text-primary" />
+            </div>
           </div>
-          <span className="font-headline text-xl tracking-tight text-on-surface">
-            Dental Center
-          </span>
+          
+          <div 
+            className="cursor-pointer"
+            onClick={() => setScreen('home')}
+          >
+            <span className="font-headline text-xl tracking-tight text-on-surface">
+              Dental Center
+            </span>
+          </div>
         </div>
 
         {/* Desktop Nav */}
@@ -87,6 +106,13 @@ const Navbar = ({ activeScreen, setScreen }: { activeScreen: Screen, setScreen: 
           >
             <Calendar className="w-4 h-4" />
             Book Appointment
+          </button>
+          <button 
+            onClick={onOpenSettings}
+            className="p-2 text-on-surface-variant hover:text-primary transition-colors"
+            title="Settings"
+          >
+            <Settings className="w-5 h-5" />
           </button>
         </div>
 
@@ -531,13 +557,19 @@ const BookingScreen = () => {
   );
 };
 
-const Footer = () => (
+const Footer = ({ logo }: { logo: string | null }) => (
   <footer className="bg-inverse-surface text-white py-20">
     <div className="max-w-7xl mx-auto px-6">
       <div className="grid md:grid-cols-4 gap-12 mb-16">
         <div className="col-span-2">
           <div className="flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-headline text-xl">S</div>
+            {logo ? (
+              <img src={logo} alt="Logo" className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white">
+                <Sparkles className="w-6 h-6" />
+              </div>
+            )}
             <span className="font-headline text-xl tracking-tight">Dental Center</span>
           </div>
           <p className="text-white/60 max-w-sm leading-relaxed mb-8">
@@ -580,15 +612,35 @@ const Footer = () => (
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
+  const [logo, setLogo] = useState<string | null>(() => localStorage.getItem('app-logo'));
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Scroll to top on screen change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [screen]);
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setLogo(base64String);
+        localStorage.setItem('app-logo', base64String);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogo(null);
+    localStorage.removeItem('app-logo');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar activeScreen={screen} setScreen={setScreen} />
+      <Navbar activeScreen={screen} setScreen={setScreen} logo={logo} onOpenSettings={() => setIsSettingsOpen(true)} />
       
       <main className="flex-grow">
         <AnimatePresence mode="wait">
@@ -708,7 +760,80 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      <Footer />
+      <Footer logo={logo} />
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-[32px] p-8 w-full max-w-md shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-headline">App Settings</h2>
+                <button 
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="p-2 hover:bg-surface-container rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold mb-4">Clinic Logo</label>
+                  <div className="flex items-center gap-6">
+                    <div className="w-20 h-20 bg-surface-container rounded-2xl flex items-center justify-center overflow-hidden border-2 border-dashed border-surface-variant">
+                      {logo ? (
+                        <img src={logo} alt="Current Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="text-primary">
+                          <Sparkles className="w-10 h-10" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-primary-container transition-colors flex items-center gap-2">
+                        <Upload className="w-4 h-4" />
+                        Upload New
+                        <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                      </label>
+                      {logo && (
+                        <button 
+                          onClick={handleRemoveLogo}
+                          className="text-red-500 text-sm font-bold flex items-center gap-2 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Remove Logo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-12 pt-6 border-t border-surface-variant">
+                <button 
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="w-full bg-surface-container text-on-surface py-4 rounded-2xl font-bold hover:bg-surface-container-high transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
