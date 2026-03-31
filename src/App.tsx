@@ -838,7 +838,7 @@ const ExpertsScreen = () => {
     {
       name: t('experts.drSarah.name'),
       role: t('experts.drSarah.role'),
-      image: "https://images.unsplash.com/photo-1559839734-2b71f153678f?q=80&w=2070&auto=format&fit=crop",
+      image: "https://images.unsplash.com/photo-1537368910025-700350fe46c7?q=80&w=2070&auto=format&fit=crop",
       bio: t('experts.drSarah.bio')
     },
     {

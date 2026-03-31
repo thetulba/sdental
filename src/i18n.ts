@@ -80,7 +80,7 @@ const resources = {
         title: 'Meet Our Experts',
         subtitle: 'A dedicated team of specialists committed to your oral health.',
         drSarah: {
-          name: 'Dr. Sarah Johnson',
+          name: 'Dr. Mohamed Ahmed Tulba',
           role: 'Lead Aesthetic Dentist',
           bio: 'Specializing in digital smile design with over 12 years of international experience.',
         },
@@ -220,9 +220,9 @@ const resources = {
         title: 'تعرف على خبراؤنا',
         subtitle: 'فريق متخصص من الأطباء الملتزمين بصحة فمك.',
         drSarah: {
-          name: 'د. سارة جونسون',
+          name: 'د. محمد أحمد طلبة',
           role: 'كبير أطباء الأسنان التجميليين',
-          bio: 'متخصصة في تصميم الابتسامة الرقمي مع أكثر من 12 عاماً من الخبرة الدولية.',
+          bio: 'متخصص في تصميم الابتسامة الرقمي مع أكثر من 12 عاماً من الخبرة الدولية.',
         },
         drMichael: {
           name: 'د. مايكل تشين',
@@ -360,7 +360,7 @@ const resources = {
         title: 'Kenali Pakar Kami',
         subtitle: 'Pasukan pakar yang berdedikasi komited terhadap kesihatan mulut anda.',
         drSarah: {
-          name: 'Dr. Sarah Johnson',
+          name: 'Dr. Mohamed Ahmed Tulba',
           role: 'Ketua Doktor Gigi Estetik',
           bio: 'Pakar dalam reka bentuk senyuman digital dengan lebih 12 tahun pengalaman antarabangsa.',
         },
@@ -500,7 +500,7 @@ const resources = {
         title: 'Kenali Pakar Kami',
         subtitle: 'Tim spesialis yang berdedikasi berkomitmen pada kesehatan mulut Anda.',
         drSarah: {
-          name: 'Dr. Sarah Johnson',
+          name: 'Dr. Mohamed Ahmed Tulba',
           role: 'Kepala Dokter Gigi Estetik',
           bio: 'Spesialis dalam desain senyum digital dengan lebih dari 12 tahun pengalaman internasional.',
         },
@@ -640,7 +640,7 @@ const resources = {
         title: 'พบกับผู้เชี่ยวชาญของเรา',
         subtitle: 'ทีมผู้เชี่ยวชาญที่ทุ่มเทเพื่อสุขภาพช่องปากของคุณ',
         drSarah: {
-          name: 'ทพญ. ซาร่าห์ จอห์นสัน',
+          name: 'ทพ. Mohamed Ahmed Tulba',
           role: 'หัวหน้าทันตแพทย์เพื่อความงาม',
           bio: 'เชี่ยวชาญด้านการออกแบบรอยยิ้มแบบดิจิทัลด้วยประสบการณ์ระดับนานาชาติกว่า 12 ปี',
         },
