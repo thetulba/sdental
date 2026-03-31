@@ -30,7 +30,12 @@ import {
   Search,
   Activity,
   Box,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  DollarSign,
+  Lock,
+  Key,
+  Briefcase
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -44,7 +49,9 @@ import {
 } from './firebase';
 import { 
   onAuthStateChanged, 
-  User as FirebaseUser 
+  User as FirebaseUser,
+  signInWithEmailAndPassword,
+  updatePassword as firebaseUpdatePassword
 } from 'firebase/auth';
 import { 
   doc, 
@@ -64,7 +71,7 @@ import { format, addHours, startOfDay, isSameDay, parseISO, isAfter } from 'date
 import { useTranslation } from 'react-i18next';
 
 // --- Types ---
-type Role = 'patient' | 'staff' | 'dentist' | 'admin';
+type Role = 'patient' | 'staff' | 'dentist' | 'admin' | 'owner';
 type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard';
 
 interface UserProfile {
@@ -73,6 +80,16 @@ interface UserProfile {
   role: Role;
   name: string;
   phone?: string;
+  requiresPasswordChange?: boolean;
+}
+
+interface HRProfile {
+  uid: string;
+  baseSalary: number;
+  joiningDate: Timestamp;
+  contractType: 'full-time' | 'part-time' | 'contract';
+  documents: { name: string, url: string, uploadedAt: Timestamp }[];
+  updatedAt?: Timestamp;
 }
 
 interface Appointment {
@@ -119,8 +136,10 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: () => Promise<void>;
+  loginWithEmail: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
   isLoggingIn: boolean;
+  updatePass: (newPass: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -147,13 +166,19 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const docSnap = await getDoc(userDoc);
           if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
+            const data = docSnap.data() as UserProfile;
+            // Special case for owner email
+            if (data.email === "the.tulba@gmail.com" && data.role !== 'owner') {
+              await setDoc(userDoc, { role: 'owner' }, { merge: true });
+              data.role = 'owner';
+            }
+            setProfile(data);
           } else {
             // Default to patient for new users
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
-              role: 'patient',
+              role: firebaseUser.email === "the.tulba@gmail.com" ? 'owner' : 'patient',
               name: firebaseUser.displayName || 'New Patient',
             };
             await setDoc(userDoc, newProfile);
@@ -190,6 +215,31 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const loginWithEmail = async (email: string, pass: string) => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      throw error;
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const updatePass = async (newPass: string) => {
+    if (!user) return;
+    try {
+      await firebaseUpdatePassword(user, newPass);
+      await setDoc(doc(db, 'users', user.uid), { requiresPasswordChange: false }, { merge: true });
+      setProfile(prev => prev ? { ...prev, requiresPasswordChange: false } : null);
+    } catch (error) {
+      console.error("Password Update Error:", error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
       await logout();
@@ -199,7 +249,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, signOut, isLoggingIn }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, loginWithEmail, signOut, isLoggingIn, updatePass }}>
       {children}
     </AuthContext.Provider>
   );
@@ -513,10 +563,11 @@ const INITIAL_EXPERTS = [
 ];
 
 const StaffDashboard = () => {
+  const { profile } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [experts, setExperts] = useState<Expert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'appointments' | 'experts'>('appointments');
+  const [tab, setTab] = useState<'appointments' | 'experts' | 'team'>('appointments');
 
   useEffect(() => {
     const q = query(collection(db, 'appointments'), orderBy('startTime', 'desc'));
@@ -589,22 +640,30 @@ const StaffDashboard = () => {
         </div>
       </div>
 
-      <div className="flex gap-4 border-b border-surface-variant">
+      <div className="flex gap-4 border-b border-surface-variant overflow-x-auto">
         <button 
           onClick={() => setTab('appointments')}
-          className={cn("pb-4 px-4 font-bold transition-all", tab === 'appointments' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+          className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'appointments' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
         >
           Appointments
         </button>
         <button 
           onClick={() => setTab('experts')}
-          className={cn("pb-4 px-4 font-bold transition-all", tab === 'experts' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+          className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'experts' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
         >
           Manage Experts
         </button>
+        {profile?.role === 'owner' && (
+          <button 
+            onClick={() => setTab('team')}
+            className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'team' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+          >
+            Team Management
+          </button>
+        )}
       </div>
 
-      {tab === 'appointments' ? (
+      {tab === 'appointments' && (
         <div className="bg-white rounded-[32px] border border-surface-variant overflow-hidden">
           <div className="p-6 border-b border-surface-variant flex items-center justify-between">
             <h3 className="font-headline text-xl">Today's Schedule</h3>
@@ -656,9 +715,9 @@ const StaffDashboard = () => {
             </table>
           </div>
         </div>
-      ) : (
-        <ExpertManagement experts={experts} />
       )}
+      {tab === 'experts' && <ExpertManagement experts={experts} />}
+      {tab === 'team' && <TeamManagement />}
     </div>
   );
 };
@@ -860,6 +919,447 @@ const ExpertManagement = ({ experts }: { experts: Expert[] }) => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+const TeamManagement = () => {
+  const [staff, setStaff] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<UserProfile | null>(null);
+  const [showHRModal, setShowHRModal] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, 'users'), where('role', 'in', ['staff', 'dentist', 'admin', 'owner']));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setStaff(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile)));
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
+    return unsubscribe;
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="font-headline text-2xl">Team Directory</h3>
+        <button 
+          onClick={() => setShowCreateModal(true)}
+          className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 hover:bg-primary-container transition-all"
+        >
+          <Plus className="w-5 h-5" />
+          Add Team Member
+        </button>
+      </div>
+
+      <div className="bg-white rounded-[32px] border border-surface-variant overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-surface-container-low text-xs uppercase tracking-wider font-bold text-on-surface-variant">
+              <tr>
+                <th className="px-6 py-4">Name</th>
+                <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4">Email</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-variant">
+              {staff.map(s => (
+                <tr key={s.id} className="hover:bg-surface-container-low transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary font-bold">
+                        {s.name?.[0] || 'U'}
+                      </div>
+                      <div className="font-bold text-sm">{s.name}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-xs font-bold uppercase tracking-tight text-primary">
+                      {s.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-on-surface-variant">{s.email}</td>
+                  <td className="px-6 py-4">
+                    <span className={cn(
+                      "px-2 py-1 rounded-lg text-[10px] font-bold uppercase",
+                      s.requiresPasswordChange ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
+                    )}>
+                      {s.requiresPasswordChange ? 'Pending Reset' : 'Active'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button 
+                      onClick={() => { setSelectedStaff(s); setShowHRModal(true); }}
+                      className="text-primary font-bold text-xs hover:underline"
+                    >
+                      View HR Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showCreateModal && <CreateStaffModal onClose={() => setShowCreateModal(false)} />}
+      {showHRModal && selectedStaff && (
+        <HRProfileModal 
+          staff={selectedStaff} 
+          onClose={() => { setShowHRModal(false); setSelectedStaff(null); }} 
+        />
+      )}
+    </div>
+  );
+};
+
+const CreateStaffModal = ({ onClose }: { onClose: () => void }) => {
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    name: '',
+    role: 'staff' as Role
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to create user');
+      }
+      
+      onClose();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-on-surface/20 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-surface-variant"
+      >
+        <div className="flex items-center justify-between mb-8">
+          <h3 className="text-2xl font-headline">New Team Member</h3>
+          <button onClick={onClose} className="p-2 hover:bg-surface-container rounded-full transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Full Name</label>
+            <input 
+              required
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary"
+              placeholder="e.g. John Smith"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Email Address</label>
+            <input 
+              required
+              type="email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary"
+              placeholder="john@clinic.com"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Temporary Password</label>
+            <div className="relative">
+              <input 
+                required
+                type="text"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 pr-12 outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Min 6 characters"
+              />
+              <Key className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Role</label>
+            <select 
+              value={form.role}
+              onChange={e => setForm({ ...form, role: e.target.value as Role })}
+              className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="staff">Staff</option>
+              <option value="dentist">Dentist</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          {error && <p className="text-red-600 text-sm font-bold text-center">{error}</p>}
+
+          <button 
+            type="submit"
+            disabled={loading}
+            className="w-full bg-primary text-white py-4 rounded-2xl font-bold shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? <Sparkles className="w-5 h-5 animate-spin" /> : 'Create Account'}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+const HRProfileModal = ({ staff, onClose }: { staff: UserProfile, onClose: () => void }) => {
+  const [profile, setProfile] = useState<HRProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState<Partial<HRProfile>>({});
+
+  useEffect(() => {
+    const docRef = doc(db, 'hr_profiles', staff.uid);
+    const unsubscribe = onSnapshot(docRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data() as HRProfile;
+        setProfile(data);
+        setForm(data);
+      } else {
+        setProfile(null);
+        setForm({
+          uid: staff.uid,
+          baseSalary: 0,
+          joiningDate: Timestamp.now(),
+          contractType: 'full-time',
+          documents: []
+        });
+      }
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.GET, `hr_profiles/${staff.uid}`));
+    return unsubscribe;
+  }, [staff.uid]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'hr_profiles', staff.uid), {
+        ...form,
+        uid: staff.uid,
+        updatedAt: Timestamp.now()
+      }, { merge: true });
+      setEditMode(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `hr_profiles/${staff.uid}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // In a real app, upload to Firebase Storage. 
+      // For this demo, we'll use a data URL for small PDFs or a mock URL.
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newDoc = {
+          name: file.name,
+          url: reader.result as string,
+          uploadedAt: Timestamp.now()
+        };
+        setForm({ ...form, documents: [...(form.documents || []), newDoc] });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-on-surface/20 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-white w-full max-w-2xl rounded-[32px] overflow-hidden shadow-2xl border border-surface-variant flex flex-col max-h-[90vh]"
+      >
+        <div className="p-8 border-b border-surface-variant flex items-center justify-between bg-surface-container-low">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center font-bold text-xl">
+              {staff.name?.[0]}
+            </div>
+            <div>
+              <h3 className="text-2xl font-headline">{staff.name}</h3>
+              <p className="text-on-surface-variant text-sm font-bold uppercase tracking-wider">{staff.role} Profile</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface-container rounded-full transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="flex-grow overflow-y-auto p-8 space-y-8">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Sparkles className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-headline text-lg flex items-center gap-2">
+                      <Briefcase className="w-5 h-5 text-primary" />
+                      Employment Details
+                    </h4>
+                    {!editMode && (
+                      <button onClick={() => setEditMode(true)} className="text-primary text-xs font-bold hover:underline flex items-center gap-1">
+                        <Settings className="w-3 h-3" /> Edit
+                      </button>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleSave} className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Base Salary (Monthly)</label>
+                      {editMode ? (
+                        <div className="relative">
+                          <input 
+                            type="number"
+                            value={form.baseSalary}
+                            onChange={e => setForm({ ...form, baseSalary: Number(e.target.value) })}
+                            className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 pl-10 outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+                        </div>
+                      ) : (
+                        <div className="text-xl font-bold text-on-surface flex items-center gap-1">
+                          <DollarSign className="w-5 h-5 text-primary" />
+                          {profile?.baseSalary?.toLocaleString() || '0'}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Contract Type</label>
+                      {editMode ? (
+                        <select 
+                          value={form.contractType}
+                          onChange={e => setForm({ ...form, contractType: e.target.value as any })}
+                          className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="full-time">Full-Time</option>
+                          <option value="part-time">Part-Time</option>
+                          <option value="contract">Contract</option>
+                        </select>
+                      ) : (
+                        <div className="text-sm font-bold text-on-surface capitalize">{profile?.contractType || 'Not Set'}</div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Joining Date</label>
+                      {editMode ? (
+                        <input 
+                          type="date"
+                          value={form.joiningDate ? format(form.joiningDate.toDate(), 'yyyy-MM-dd') : ''}
+                          onChange={e => setForm({ ...form, joiningDate: Timestamp.fromDate(new Date(e.target.value)) })}
+                          className="w-full bg-surface-container-low border border-surface-variant rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      ) : (
+                        <div className="text-sm font-bold text-on-surface">
+                          {profile?.joiningDate ? format(profile.joiningDate.toDate(), 'PPP') : 'Not Set'}
+                        </div>
+                      )}
+                    </div>
+
+                    {editMode && (
+                      <div className="flex gap-2 pt-2">
+                        <button 
+                          type="submit"
+                          disabled={saving}
+                          className="flex-grow bg-primary text-white py-3 rounded-xl font-bold text-sm shadow-md hover:bg-primary-container transition-all"
+                        >
+                          {saving ? 'Saving...' : 'Save Details'}
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => { setEditMode(false); setForm(profile || {}); }}
+                          className="px-4 bg-surface-container text-on-surface py-3 rounded-xl font-bold text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </form>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-headline text-lg flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-primary" />
+                      Confidential Documents
+                    </h4>
+                    <label className="bg-surface-container text-primary p-2 rounded-xl cursor-pointer hover:bg-primary/10 transition-all">
+                      <Upload className="w-4 h-4" />
+                      <input type="file" className="hidden" accept=".pdf" onChange={handleFileUpload} />
+                    </label>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(form.documents || []).length > 0 ? (
+                      (form.documents || []).map((doc, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 bg-surface-container-low border border-surface-variant rounded-2xl group">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold truncate max-w-[150px]">{doc.name}</div>
+                              <div className="text-[10px] text-on-surface-variant">{format(doc.uploadedAt.toDate(), 'MMM d, yyyy')}</div>
+                            </div>
+                          </div>
+                          <a 
+                            href={doc.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-bold text-primary hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            View PDF
+                          </a>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-12 border-2 border-dashed border-surface-variant rounded-2xl flex flex-col items-center justify-center text-on-surface-variant text-center px-6">
+                        <Lock className="w-8 h-8 mb-2 opacity-10" />
+                        <p className="text-xs">No confidential documents uploaded yet.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 };
@@ -1445,6 +1945,13 @@ export default function App() {
   const [logo, setLogo] = useState<string | null>(() => localStorage.getItem('app-logo'));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { t, i18n } = useTranslation();
+  const { user, profile, loading } = useAuth();
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-surface-container-low"><Sparkles className="w-12 h-12 animate-spin text-primary" /></div>;
+
+  if (user && profile?.requiresPasswordChange) {
+    return <PasswordChangeModal />;
+  }
 
   return (
     <AuthProvider>
@@ -1561,7 +2068,7 @@ export default function App() {
             {screen === 'dashboard' && (
               <div className="pt-32 pb-20 bg-surface-container-low min-h-screen">
                 <div className="max-w-7xl mx-auto px-6">
-                  <DashboardRouter />
+                  {!user ? <Login /> : <DashboardRouter />}
                 </div>
               </div>
             )}
@@ -1594,11 +2101,200 @@ const DashboardRouter = () => {
 
   switch (profile.role) {
     case 'patient': return <PatientDashboard />;
-    case 'staff': return <StaffDashboard />;
+    case 'staff': 
+    case 'owner': return <StaffDashboard />;
     case 'dentist':
     case 'admin': return <DentistDashboard />;
     default: return <PatientDashboard />;
   }
+};
+
+// --- Auth Components ---
+
+const Login = () => {
+  const { login, loginWithEmail, isLoggingIn } = useAuth();
+  const { t } = useTranslation();
+  const [isEmailLogin, setIsEmailLogin] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await loginWithEmail(email, password);
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl border border-gray-100"
+      >
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-4">
+            <ShieldCheck className="w-8 h-8 text-blue-600" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900">{t('login.title')}</h2>
+          <p className="mt-2 text-gray-600">{t('login.subtitle')}</p>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg flex items-center gap-2 text-sm">
+            <AlertCircle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+
+        {isEmailLogin ? (
+          <form onSubmit={handleEmailLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
+            >
+              {isLoggingIn ? <Sparkles className="w-5 h-5 animate-spin" /> : 'Sign In'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEmailLogin(false)}
+              className="w-full text-sm text-blue-600 hover:underline"
+            >
+              Back to Google Login
+            </button>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <button
+              onClick={login}
+              disabled={isLoggingIn}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 rounded-xl shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
+            >
+              {isLoggingIn ? (
+                <Sparkles className="w-5 h-5 animate-spin text-blue-600" />
+              ) : (
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+              )}
+              {t('login.google_button')}
+            </button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+              <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Or</span></div>
+            </div>
+            <button
+              onClick={() => setIsEmailLogin(true)}
+              className="w-full py-3 px-4 border border-gray-300 rounded-xl shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all"
+            >
+              Sign in with Email
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+};
+
+const PasswordChangeModal = () => {
+  const { updatePass } = useAuth();
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPass !== confirmPass) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (newPass.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    setLoading(true);
+    try {
+      await updatePass(newPass);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl"
+      >
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Change Password</h2>
+        <p className="text-gray-600 mb-6">For security, you must change your temporary password on your first login.</p>
+        
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <input 
+              type="password" 
+              value={newPass}
+              onChange={(e) => setNewPass(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+            <input 
+              type="password" 
+              value={confirmPass}
+              onChange={(e) => setConfirmPass(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Updating...' : 'Update Password'}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
 };
 
 const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, onClose: () => void, logo: string | null, setLogo: (l: string | null) => void }) => {

@@ -21,6 +21,9 @@ service cloud.firestore {
     // Collection: experts
     // Fields: name (string), role (string), bio (string), photoURL (string), order (number)
     //
+    // Collection: hr_profiles
+    // Fields: uid (string), baseSalary (number), joiningDate (string), contractType (string), documents (list of objects: { name, url, type })
+    //
     // ===============================================================
 
     // ===============================================================
@@ -42,7 +45,12 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
         (getUserData().role == 'admin' || 
+         getUserData().role == 'owner' ||
          (request.auth.token.email == "the.tulba@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isOwnerRole() {
+      return isAuthenticated() && (getUserData().role == 'owner' || (request.auth.token.email == "the.tulba@gmail.com" && request.auth.token.email_verified == true));
     }
 
     function isStaff() {
@@ -57,8 +65,17 @@ service cloud.firestore {
       return data.keys().hasAll(['uid', 'email', 'role', 'name']) &&
              data.uid is string &&
              data.email is string &&
-             data.role in ['patient', 'staff', 'dentist', 'admin'] &&
+             data.role in ['patient', 'staff', 'dentist', 'admin', 'owner'] &&
              data.name is string && data.name.size() < 100;
+    }
+
+    function isValidHRProfile(data) {
+      return data.keys().hasAll(['uid', 'baseSalary', 'joiningDate', 'contractType']) &&
+             data.uid is string &&
+             data.baseSalary is number &&
+             data.joiningDate is timestamp &&
+             data.contractType in ['full-time', 'part-time', 'contract'] &&
+             (!('documents' in data) || data.documents is list);
     }
 
     function isValidAppointment(data) {
@@ -102,6 +119,10 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (isOwner(uid) || isStaff() || isDentist());
       allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) || isAdmin());
       allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) || isAdmin());
+    }
+
+    match /hr_profiles/{uid} {
+      allow read, write: if isOwnerRole();
     }
 
     match /appointments/{id} {
