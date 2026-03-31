@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid (string), email (string), role (string: patient, staff, dentist), name (string), phone (string)
+    //
+    // Collection: appointments
+    // Fields: patientId (string), dentistId (string), startTime (timestamp), endTime (timestamp), type (string), status (string)
+    //
+    // Collection: clinical_records
+    // Fields: patientId (string), dentistId (string), date (timestamp), notes (string), scans (list of strings)
+    //
+    // Collection: billing
+    // Fields: appointmentId (string), patientId (string), amount (number), status (string)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (getUserData().role == 'admin' || 
+         (request.auth.token.email == "the.tulba@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (getUserData().role == 'staff' || isAdmin());
+    }
+
+    function isDentist() {
+      return isAuthenticated() && (getUserData().role == 'dentist' || isAdmin());
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'name']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['patient', 'staff', 'dentist', 'admin'] &&
+             data.name is string && data.name.size() < 100;
+    }
+
+    function isValidAppointment(data) {
+      return data.keys().hasAll(['patientId', 'startTime', 'endTime', 'type', 'status']) &&
+             data.patientId is string &&
+             data.startTime is timestamp &&
+             data.endTime is timestamp &&
+             data.type in ['checkup', 'surgery', 'emergency'] &&
+             data.status in ['booked', 'checked-in', 'completed', 'cancelled'];
+    }
+
+    function isValidClinicalRecord(data) {
+      return data.keys().hasAll(['patientId', 'dentistId', 'date']) &&
+             data.patientId is string &&
+             data.dentistId is string &&
+             data.date is timestamp;
+    }
+
+    function isValidBilling(data) {
+      return data.keys().hasAll(['appointmentId', 'patientId', 'amount', 'status']) &&
+             data.appointmentId is string &&
+             data.patientId is string &&
+             data.amount is number &&
+             data.status in ['pending', 'paid'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      allow read: if isAuthenticated() && (isOwner(uid) || isStaff() || isDentist());
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) || isAdmin());
+    }
+
+    match /appointments/{id} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isStaff() || isDentist());
+      allow create: if isAuthenticated() && isValidAppointment(request.resource.data) && (request.auth.uid == request.resource.data.patientId || isStaff());
+      allow update: if isAuthenticated() && isValidAppointment(request.resource.data) && (request.auth.uid == resource.data.patientId || isStaff() || isDentist());
+    }
+
+    match /clinical_records/{id} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isDentist());
+      allow create: if isAuthenticated() && isValidClinicalRecord(request.resource.data) && isDentist();
+      allow update: if isAuthenticated() && isValidClinicalRecord(request.resource.data) && isDentist();
+    }
+
+    match /billing/{id} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isStaff());
+      allow create: if isAuthenticated() && isValidBilling(request.resource.data) && isStaff();
+      allow update: if isAuthenticated() && isValidBilling(request.resource.data) && isStaff();
+    }
+  }
+}

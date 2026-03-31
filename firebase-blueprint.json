@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the dental clinic system.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["patient", "staff", "dentist"] },
+        "name": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["uid", "email", "role", "name"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "A scheduled dental appointment.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "dentistId": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["checkup", "surgery", "emergency"] },
+        "status": { "type": "string", "enum": ["booked", "checked-in", "completed", "cancelled"] }
+      },
+      "required": ["patientId", "startTime", "endTime", "type", "status"]
+    },
+    "ClinicalRecord": {
+      "title": "Clinical Record",
+      "description": "A medical record for a patient.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "dentistId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" },
+        "scans": { "type": "array", "items": { "type": "string" }, "description": "URLs to 3D/DICOM files" }
+      },
+      "required": ["patientId", "dentistId", "date"]
+    },
+    "Billing": {
+      "title": "Billing",
+      "description": "A billing record for an appointment.",
+      "type": "object",
+      "properties": {
+        "appointmentId": { "type": "string" },
+        "patientId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "paid"] }
+      },
+      "required": ["appointmentId", "patientId", "amount", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/appointments/{id}": { "schema": "Appointment", "description": "Scheduled appointments" },
+    "/clinical_records/{id}": { "schema": "ClinicalRecord", "description": "Patient medical history" },
+    "/billing/{id}": { "schema": "Billing", "description": "Financial records" }
+  }
+}
