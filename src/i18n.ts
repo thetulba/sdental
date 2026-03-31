@@ -81,7 +81,7 @@ const resources = {
         subtitle: 'A dedicated team of specialists committed to your oral health.',
         drSarah: {
           name: 'Dr. Mohamed Ahmed Tulba',
-          role: 'Lead Aesthetic Dentist',
+          role: 'Consultant Orthodontist',
           bio: 'Specializing in digital smile design with over 12 years of international experience.',
         },
         drMichael: {
@@ -221,7 +221,7 @@ const resources = {
         subtitle: 'فريق متخصص من الأطباء الملتزمين بصحة فمك.',
         drSarah: {
           name: 'د. محمد أحمد طلبة',
-          role: 'كبير أطباء الأسنان التجميليين',
+          role: 'استشاري تقويم الأسنان',
           bio: 'متخصص في تصميم الابتسامة الرقمي مع أكثر من 12 عاماً من الخبرة الدولية.',
         },
         drMichael: {
@@ -361,7 +361,7 @@ const resources = {
         subtitle: 'Pasukan pakar yang berdedikasi komited terhadap kesihatan mulut anda.',
         drSarah: {
           name: 'Dr. Mohamed Ahmed Tulba',
-          role: 'Ketua Doktor Gigi Estetik',
+          role: 'Pakar Perunding Ortodontik',
           bio: 'Pakar dalam reka bentuk senyuman digital dengan lebih 12 tahun pengalaman antarabangsa.',
         },
         drMichael: {
@@ -501,7 +501,7 @@ const resources = {
         subtitle: 'Tim spesialis yang berdedikasi berkomitmen pada kesehatan mulut Anda.',
         drSarah: {
           name: 'Dr. Mohamed Ahmed Tulba',
-          role: 'Kepala Dokter Gigi Estetik',
+          role: 'Konsultan Ortodontis',
           bio: 'Spesialis dalam desain senyum digital dengan lebih dari 12 tahun pengalaman internasional.',
         },
         drMichael: {
@@ -641,7 +641,7 @@ const resources = {
         subtitle: 'ทีมผู้เชี่ยวชาญที่ทุ่มเทเพื่อสุขภาพช่องปากของคุณ',
         drSarah: {
           name: 'ทพ. Mohamed Ahmed Tulba',
-          role: 'หัวหน้าทันตแพทย์เพื่อความงาม',
+          role: 'ทันตแพทย์จัดฟันระดับที่ปรึกษา',
           bio: 'เชี่ยวชาญด้านการออกแบบรอยยิ้มแบบดิจิทัลด้วยประสบการณ์ระดับนานาชาติกว่า 12 ปี',
         },
         drMichael: {

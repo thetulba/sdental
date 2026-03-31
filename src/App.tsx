@@ -962,7 +962,7 @@ const BookingScreen = () => {
         patientId: profile.uid,
         patientName: profile.name,
         dentistId: 'default_dentist',
-        dentistName: 'Dr. Sarah Johnson',
+        dentistName: 'Dr. Mohamed Ahmed Tulba',
         startTime: Timestamp.fromDate(addHours(startOfDay(new Date()), 10)), // Mock time
         endTime: Timestamp.fromDate(addHours(startOfDay(new Date()), 11)),
         type,
