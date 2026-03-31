@@ -54,6 +54,18 @@ const resources = {
           desc: 'Our coordinator will contact you within 2 hours to confirm your preferred time slot.',
           back: 'Back to Home',
         },
+        confirmation: {
+          title: 'Appointment Confirmed',
+          details: 'Appointment Details',
+          patient: 'Patient',
+          service: 'Service',
+          date: 'Date & Time',
+          nextSteps: 'Next Steps',
+          step1: 'Our team will review your request and verify the clinical availability.',
+          step2: 'You will receive a confirmation call or SMS within 2 hours.',
+          step3: 'Please arrive at the clinic 10 minutes before your scheduled time.',
+          done: 'Done',
+        },
       },
       dashboard: {
         patient: {
@@ -73,6 +85,19 @@ const resources = {
             type: 'Type',
             status: 'Status',
             noAppointments: 'No appointments found.',
+          },
+        },
+        staff: {
+          title: 'Staff Dashboard',
+          appointments: 'Appointments',
+          experts: 'Experts',
+          reminders: {
+            sendSms: 'Send SMS',
+            sendWhatsapp: 'Send WhatsApp',
+            smsSent: 'SMS Sent',
+            whatsappSent: 'WhatsApp Sent',
+            noReminders: 'No reminders sent',
+            sending: 'Sending...',
           },
         },
       },

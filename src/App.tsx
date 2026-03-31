@@ -27,6 +27,7 @@ import {
   FileText,
   CreditCard,
   Plus,
+  PlusCircle,
   Search,
   Activity,
   Box,
@@ -35,7 +36,30 @@ import {
   DollarSign,
   Lock,
   Key,
-  Briefcase
+  Briefcase,
+  MessageSquare,
+  Smartphone,
+  User,
+  Mail,
+  Share2,
+  History,
+  XCircle,
+  ArrowLeft,
+  Edit3,
+  Filter,
+  Download,
+  Printer,
+  MoreVertical,
+  ChevronDown,
+  TrendingUp,
+  TrendingDown,
+  Smile,
+  Frown,
+  Meh,
+  CalendarDays,
+  Timer,
+  Target,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -80,6 +104,33 @@ interface UserProfile {
   role: Role;
   name: string;
   phone?: string;
+  secondaryPhone?: string;
+  age?: number;
+  gender?: 'Male' | 'Female' | 'Other';
+  title?: string;
+  maritalStatus?: 'Single' | 'Married' | 'Divorced' | 'Widowed';
+  familyMembers?: number;
+  address?: string;
+  nationality?: string;
+  nationalId?: string;
+  country?: string;
+  assignedPractitioner?: string;
+  tags?: string[];
+  balance?: number;
+  points?: number;
+  totalPayments?: number;
+  medicalHistory?: string;
+  insuranceDetails?: string;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relation: string;
+  };
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+  createdBy?: string;
+  lastUpdatedBy?: string;
+  branch?: string;
   requiresPasswordChange?: boolean;
 }
 
@@ -102,6 +153,9 @@ interface Appointment {
   endTime: Timestamp;
   type: 'checkup' | 'surgery' | 'emergency';
   status: 'booked' | 'checked-in' | 'completed' | 'cancelled';
+  reminderSent_sms?: boolean;
+  reminderSent_whatsapp?: boolean;
+  lastReminderSentAt?: Timestamp;
 }
 
 interface ClinicalRecord {
@@ -562,12 +616,953 @@ const INITIAL_EXPERTS = [
   { name: 'Dr. Anna Smith', role: 'Pediatric Dentist', bio: 'Dedicated to providing gentle and fun dental care for children.', order: 5 },
 ];
 
+const OrthoDashboard = ({ patientId, onBack }: { patientId: string; onBack: () => void }) => {
+  const { profile } = useAuth();
+  const [patient, setPatient] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Mock data for Orthodontic Treatment
+  const [orthoData, setOrthoData] = useState({
+    type: 'Traditional Metal Braces',
+    startDate: new Date(2025, 5, 15), // June 15, 2025
+    estimatedEndDate: new Date(2026, 11, 15), // Dec 15, 2026
+    status: 'Active',
+    orthodontist: 'Dr. Sarah Miller',
+    clinic: 'S Dental Center - Cairo Branch',
+    totalDurationMonths: 18,
+    upperWire: '0.016 NiTi',
+    lowerWire: '0.016 NiTi',
+    stages: [
+      { name: 'Consultation', status: 'completed', months: 1, visits: 1 },
+      { name: 'Records & Diagnosis', status: 'completed', months: 1, visits: 1 },
+      { name: 'Appliance Placement', status: 'completed', months: 1, visits: 1 },
+      { name: 'Alignment', status: 'current', months: 6, visits: 6 },
+      { name: 'Space Closure', status: 'upcoming', months: 4, visits: 4 },
+      { name: 'Bite Correction', status: 'upcoming', months: 4, visits: 4 },
+      { name: 'Finishing', status: 'upcoming', months: 2, visits: 2 },
+      { name: 'Retention', status: 'upcoming', months: 12, visits: 4 },
+    ],
+    visits: [
+      {
+        id: 'v1',
+        date: new Date(2026, 2, 10),
+        action: 'Wire Change & Adjustment',
+        summary: 'Upper arch alignment is progressing well. Switched to 0.016 NiTi wire.',
+        instructions: 'Continue wearing elastics (Class II) 22 hours a day.',
+        hygiene: {
+          score: 8,
+          plaqueLevel: 'Low',
+          gingivalCondition: 'Healthy',
+          brushingQuality: 'Good',
+          areasToImprove: ['Lower molars lingual side'],
+          trend: 'improving'
+        }
+      },
+      {
+        id: 'v2',
+        date: new Date(2026, 1, 5),
+        action: 'Bracket Re-attachment',
+        summary: 'Re-attached lower left 2nd premolar bracket. General alignment check.',
+        instructions: 'Avoid hard/sticky foods to prevent bracket breakage.',
+        hygiene: {
+          score: 6,
+          plaqueLevel: 'Moderate',
+          gingivalCondition: 'Mild Inflammation',
+          brushingQuality: 'Fair',
+          areasToImprove: ['Upper front teeth gumline'],
+          trend: 'worsening'
+        }
+      }
+    ],
+    alerts: [
+      { type: 'hygiene', message: 'Mild inflammation in lower arch. Focus on flossing.' },
+      { type: 'compliance', message: 'Broken bracket reported last visit. Be careful with hard foods.' }
+    ],
+    nextAppointment: {
+      date: new Date(2026, 3, 15),
+      purpose: 'Regular Adjustment & Progress Check',
+      instructions: 'Bring your elastics and aligner case if applicable.'
+    }
+  });
+
+  const updateStage = (idx: number, updates: any) => {
+    const newStages = [...orthoData.stages];
+    newStages[idx] = { ...newStages[idx], ...updates };
+    setOrthoData({ ...orthoData, stages: newStages });
+  };
+
+  const addStage = (idx: number) => {
+    const newStages = [...orthoData.stages];
+    newStages.splice(idx + 1, 0, { name: 'New Stage', status: 'upcoming', months: 1, visits: 1 });
+    setOrthoData({ ...orthoData, stages: newStages });
+  };
+
+  const removeStage = (idx: number) => {
+    const newStages = orthoData.stages.filter((_, i) => i !== idx);
+    setOrthoData({ ...orthoData, stages: newStages });
+  };
+
+  const updateWire = (arch: 'upper' | 'lower', wire: string) => {
+    setOrthoData({ ...orthoData, [arch === 'upper' ? 'upperWire' : 'lowerWire']: wire });
+  };
+
+  const saveChanges = async () => {
+    try {
+      const docRef = doc(db, 'users', patientId);
+      await setDoc(docRef, { orthoPlan: orthoData }, { merge: true });
+      setIsEditing(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${patientId}`);
+    }
+  };
+
+  useEffect(() => {
+    const fetchPatient = async () => {
+      try {
+        const docRef = doc(db, 'users', patientId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setPatient({ uid: docSnap.id, ...data } as UserProfile);
+          if (data.orthoPlan) {
+            const plan = { ...data.orthoPlan };
+            // Convert Firestore timestamps to Dates
+            if (plan.startDate?.toDate) plan.startDate = plan.startDate.toDate();
+            if (plan.estimatedEndDate?.toDate) plan.estimatedEndDate = plan.estimatedEndDate.toDate();
+            if (plan.nextAppointment?.date?.toDate) plan.nextAppointment.date = plan.nextAppointment.date.toDate();
+            if (plan.visits) {
+              plan.visits = plan.visits.map((v: any) => ({
+                ...v,
+                date: v.date?.toDate ? v.date.toDate() : v.date
+              }));
+            }
+            setOrthoData(plan);
+          }
+        }
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, `users/${patientId}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPatient();
+  }, [patientId]);
+
+  if (loading) return <div className="p-12 text-center italic">Loading patient portal...</div>;
+  if (!patient) return <div className="p-12 text-center text-red-500">Patient not found.</div>;
+
+  const today = new Date();
+  const elapsedMs = today.getTime() - orthoData.startDate.getTime();
+  const totalMs = orthoData.estimatedEndDate.getTime() - orthoData.startDate.getTime();
+  const progressPercent = Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100));
+  const monthsRemaining = Math.ceil((orthoData.estimatedEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 30));
+
+  return (
+    <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8 bg-slate-50 min-h-screen">
+      {/* Header / Summary */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-5">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20 overflow-hidden">
+            <User className="w-10 h-10 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-headline text-slate-900">{patient.name}</h1>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500 mt-1">
+              <span className="flex items-center gap-1"><Target className="w-4 h-4" /> ID: {patient.uid.slice(0, 8)}</span>
+              <span className="flex items-center gap-1"><CalendarDays className="w-4 h-4" /> {patient.age} years old</span>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full uppercase tracking-wider">
+                {orthoData.status}
+              </span>
+              <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full uppercase tracking-wider">
+                {orthoData.type}
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="text-right border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-8">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Orthodontist</p>
+          <p className="font-bold text-slate-800">{orthoData.orthodontist}</p>
+          <p className="text-sm text-slate-500">{orthoData.clinic}</p>
+          <div className="flex flex-col items-end gap-2 mt-4">
+            {profile?.role !== 'patient' && (
+              <button 
+                onClick={() => isEditing ? saveChanges() : setIsEditing(true)}
+                className={cn(
+                  "text-xs font-bold px-3 py-1 rounded-full border transition-all",
+                  isEditing ? "bg-green-500 text-white border-green-500" : "text-primary border-primary/20 hover:bg-primary/5"
+                )}
+              >
+                {isEditing ? "Save Changes" : "Edit Plan"}
+              </button>
+            )}
+            <button onClick={onBack} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+              <ArrowLeft className="w-3 h-3" /> Back to Profile
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Left Column: Timeline & Stages */}
+        <div className="lg:col-span-2 space-y-8">
+          
+          {/* Treatment Timeline */}
+          <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-xl font-headline flex items-center gap-2">
+                <Timer className="w-5 h-5 text-primary" /> Treatment Progress
+              </h2>
+              <span className="text-sm font-bold text-primary">{Math.round(progressPercent)}% Complete</span>
+            </div>
+            
+            <div className="relative pt-2 pb-8">
+              {/* Progress Track */}
+              <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPercent}%` }}
+                  transition={{ duration: 1.5, ease: "easeOut" }}
+                  className="h-full bg-gradient-to-r from-primary to-primary-container"
+                />
+              </div>
+              
+              {/* Markers */}
+              <div className="flex justify-between mt-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <div className="text-left">
+                  <p>Started</p>
+                  <p className="text-slate-900 mt-1">{format(orthoData.startDate, 'MMM d, yyyy')}</p>
+                </div>
+                <div className="text-center absolute left-1/2 -translate-x-1/2">
+                  <p>Today</p>
+                  <p className="text-primary mt-1">{format(today, 'MMM d, yyyy')}</p>
+                </div>
+                <div className="text-right">
+                  <p>Estimated End</p>
+                  <p className="text-slate-900 mt-1">{format(orthoData.estimatedEndDate, 'MMM d, yyyy')}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 mt-4 pt-6 border-t border-slate-50">
+              <div className="bg-slate-50 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Time Elapsed</p>
+                <p className="text-xl font-headline text-slate-800">{Math.floor(elapsedMs / (1000 * 60 * 60 * 24 * 30))} Months</p>
+              </div>
+              <div className="bg-primary/5 p-4 rounded-2xl">
+                <p className="text-xs font-bold text-primary/60 uppercase mb-1">Remaining</p>
+                <p className="text-xl font-headline text-primary">{monthsRemaining} Months</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Stages Tracker */}
+          <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-xl font-headline">Treatment Stages</h2>
+              {isEditing && <span className="text-[10px] font-black text-primary uppercase tracking-widest bg-primary/10 px-2 py-1 rounded">Edit Mode</span>}
+            </div>
+            <div className="relative">
+              <div className="space-y-6">
+                {orthoData.stages.map((stage, idx) => (
+                  <div key={idx} className="flex items-start gap-4 group relative">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 transition-all duration-300 mt-1",
+                      stage.status === 'completed' ? "bg-green-500 border-green-500 text-white" :
+                      stage.status === 'current' ? "bg-primary border-primary text-white scale-110 shadow-lg shadow-primary/20" :
+                      "bg-white border-slate-200 text-slate-300"
+                    )}>
+                      {stage.status === 'completed' ? <CheckCircle2 className="w-6 h-6" /> : <span className="font-bold">{idx + 1}</span>}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        {isEditing ? (
+                          <div className="flex flex-col gap-1">
+                            <input 
+                              type="text" 
+                              value={stage.name} 
+                              onChange={(e) => updateStage(idx, { name: e.target.value })}
+                              className="font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:border-primary"
+                            />
+                            <select 
+                              value={stage.status}
+                              onChange={(e) => updateStage(idx, { status: e.target.value })}
+                              className="text-[10px] font-bold uppercase tracking-widest bg-white border border-slate-200 rounded px-1 outline-none"
+                            >
+                              <option value="completed">Completed</option>
+                              <option value="current">Current</option>
+                              <option value="upcoming">Upcoming</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <p className={cn(
+                            "font-bold transition-colors",
+                            stage.status === 'completed' ? "text-slate-500" :
+                            stage.status === 'current' ? "text-primary text-lg" :
+                            "text-slate-400"
+                          )}>
+                            {stage.name}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Months</p>
+                            {isEditing ? (
+                              <input 
+                                type="number" 
+                                value={stage.months} 
+                                onChange={(e) => updateStage(idx, { months: parseInt(e.target.value) })}
+                                className="w-12 text-center text-xs font-bold bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:border-primary"
+                              />
+                            ) : (
+                              <p className="text-xs font-bold text-slate-600">{stage.months}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Visits</p>
+                            {isEditing ? (
+                              <input 
+                                type="number" 
+                                value={stage.visits} 
+                                onChange={(e) => updateStage(idx, { visits: parseInt(e.target.value) })}
+                                className="w-12 text-center text-xs font-bold bg-slate-50 border border-slate-200 rounded p-1 outline-none focus:border-primary"
+                              />
+                            ) : (
+                              <p className="text-xs font-bold text-slate-600">{stage.visits}</p>
+                            )}
+                          </div>
+                          {isEditing && (
+                            <div className="flex flex-col gap-1">
+                              <button onClick={() => removeStage(idx)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                              <button onClick={() => addStage(idx)} className="text-primary hover:text-primary-dark"><PlusCircle className="w-4 h-4" /></button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {stage.status === 'current' && (
+                        <p className="text-xs text-primary/70 font-medium mt-0.5">You are here! Keep up the great work.</p>
+                      )}
+                    </div>
+                    {stage.status === 'completed' && !isEditing && <span className="text-[10px] font-black text-green-500 uppercase tracking-widest mt-3">Done</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Visit History */}
+          <div className="space-y-6">
+            <h2 className="text-xl font-headline px-2">Visit History & Progress</h2>
+            {orthoData.visits.map((visit) => (
+              <div key={visit.id} className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-50 flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">{format(visit.date, 'MMMM d, yyyy')}</p>
+                    <h3 className="text-lg font-bold text-slate-800">{visit.action}</h3>
+                  </div>
+                  <div className="bg-slate-50 px-3 py-1 rounded-full flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500">Hygiene:</span>
+                    <span className={cn(
+                      "text-xs font-black",
+                      visit.hygiene.score >= 8 ? "text-green-600" : visit.hygiene.score >= 5 ? "text-yellow-600" : "text-red-600"
+                    )}>
+                      {visit.hygiene.score}/10
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="p-6 grid md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Progress Summary</p>
+                      <p className="text-sm text-slate-600 leading-relaxed">{visit.summary}</p>
+                    </div>
+                    <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                      <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Next Instructions</p>
+                      <p className="text-sm text-primary/80 font-medium">{visit.instructions}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hygiene Evaluation</p>
+                      <div className="flex items-center gap-1">
+                        {visit.hygiene.trend === 'improving' ? <TrendingUp className="w-4 h-4 text-green-500" /> : <TrendingDown className="w-4 h-4 text-red-500" />}
+                        <span className={cn("text-[10px] font-bold uppercase", visit.hygiene.trend === 'improving' ? "text-green-500" : "text-red-500")}>
+                          {visit.hygiene.trend}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Brushing Quality</span>
+                        <span className="font-bold text-slate-800">{visit.hygiene.brushingQuality}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Plaque Level</span>
+                        <span className="font-bold text-slate-800">{visit.hygiene.plaqueLevel}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Gingival Condition</span>
+                        <span className="font-bold text-slate-800">{visit.hygiene.gingivalCondition}</span>
+                      </div>
+                      <div className="pt-2">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Focus Areas</p>
+                        <div className="flex flex-wrap gap-1">
+                          {visit.hygiene.areasToImprove.map((area, i) => (
+                            <span key={i} className="text-[10px] bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600">{area}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column: Alerts, Next Appt, Actions */}
+        <div className="space-y-8">
+          
+          {/* Wire Selection */}
+          <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+            <h2 className="text-lg font-headline mb-6 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary" /> Wire Selection
+            </h2>
+            <div className="space-y-8">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Upper Arch</p>
+                  <p className="text-lg font-bold text-primary">{orthoData.upperWire || 'None'}</p>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lower Arch</p>
+                  <p className="text-lg font-bold text-slate-800">{orthoData.lowerWire || 'None'}</p>
+                </div>
+              </div>
+              
+              {profile?.role !== 'patient' && (
+                <div className="space-y-6">
+                  {/* Upper Arch Selection */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Update Upper Arch</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        '0.014 NiTi', '0.016 NiTi', '0.018 NiTi', 
+                        '0.016x0.022 NiTi', '0.017x0.025 NiTi',
+                        '0.016x0.022 SS', '0.017x0.025 SS', '0.019x0.025 SS',
+                        '0.017x0.025 TMA', '0.019x0.025 TMA'
+                      ].map((wire) => (
+                        <button
+                          key={wire}
+                          onClick={() => updateWire('upper', wire)}
+                          className={cn(
+                            "text-[10px] font-bold py-2 rounded-xl border transition-all",
+                            orthoData.upperWire === wire 
+                              ? "bg-primary text-white border-primary shadow-md" 
+                              : "bg-white text-slate-600 border-slate-200 hover:border-primary/30 hover:bg-primary/5"
+                          )}
+                        >
+                          {wire}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Lower Arch Selection */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Update Lower Arch</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        '0.014 NiTi', '0.016 NiTi', '0.018 NiTi', 
+                        '0.016x0.022 NiTi', '0.017x0.025 NiTi',
+                        '0.016x0.022 SS', '0.017x0.025 SS', '0.019x0.025 SS',
+                        '0.017x0.025 TMA', '0.019x0.025 TMA'
+                      ].map((wire) => (
+                        <button
+                          key={wire}
+                          onClick={() => updateWire('lower', wire)}
+                          className={cn(
+                            "text-[10px] font-bold py-2 rounded-xl border transition-all",
+                            orthoData.lowerWire === wire 
+                              ? "bg-slate-800 text-white border-slate-800 shadow-md" 
+                              : "bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:bg-slate-50"
+                          )}
+                        >
+                          {wire}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Next Appointment */}
+          <div className="bg-primary p-8 rounded-[32px] text-white shadow-xl shadow-primary/20 relative overflow-hidden">
+            <Zap className="absolute -right-4 -top-4 w-32 h-32 text-white/10 rotate-12" />
+            <div className="relative z-10">
+              <p className="text-xs font-black text-white/60 uppercase tracking-widest mb-4">Next Visit</p>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+                  <Calendar className="w-8 h-8" />
+                </div>
+                <div>
+                  <p className="text-2xl font-headline">{format(orthoData.nextAppointment.date, 'EEE, MMM d')}</p>
+                  <p className="text-white/80 font-medium">{format(orthoData.nextAppointment.date, 'p')}</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="bg-white/10 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1">Purpose</p>
+                  <p className="text-sm font-medium">{orthoData.nextAppointment.purpose}</p>
+                </div>
+                <div className="bg-white/10 p-4 rounded-2xl">
+                  <p className="text-[10px] font-black text-white/60 uppercase tracking-widest mb-1">Instructions</p>
+                  <p className="text-sm font-medium">{orthoData.nextAppointment.instructions}</p>
+                </div>
+              </div>
+              <button className="w-full mt-6 bg-white text-primary font-bold py-3 rounded-2xl hover:bg-slate-50 transition-colors">
+                Add to Calendar
+              </button>
+            </div>
+          </div>
+
+          {/* Alerts & Compliance */}
+          <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+            <h2 className="text-lg font-headline mb-6 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500" /> Compliance Alerts
+            </h2>
+            <div className="space-y-4">
+              {orthoData.alerts.map((alert, i) => (
+                <div key={i} className="flex gap-3 p-4 rounded-2xl bg-red-50 border border-red-100">
+                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-800 font-medium leading-tight">{alert.message}</p>
+                </div>
+              ))}
+              {orthoData.alerts.length === 0 && (
+                <div className="text-center py-8">
+                  <Smile className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-slate-800">Perfect Compliance!</p>
+                  <p className="text-xs text-slate-500 mt-1">Keep following your instructions.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Reminders */}
+          <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+            <h2 className="text-lg font-headline mb-6">Daily Checklist</h2>
+            <div className="space-y-4">
+              {[
+                { label: 'Wear Elastics (22h)', icon: Zap },
+                { label: 'Brush after meals', icon: Smile },
+                { label: 'Floss daily', icon: Target },
+                { label: 'Avoid hard foods', icon: Frown }
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-100 rounded-lg">
+                      <item.icon className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                  </div>
+                  <div className="w-5 h-5 rounded border-2 border-slate-200" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: () => void }) => {
+  const { t } = useTranslation();
+  const [patient, setPatient] = useState<UserProfile | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('appointments');
+  const [showOrthoPortal, setShowOrthoPortal] = useState(false);
+
+  useEffect(() => {
+    const fetchPatient = async () => {
+      try {
+        const docRef = doc(db, 'users', patientId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setPatient({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+        }
+      } catch (error) {
+        handleFirestoreError(error, OperationType.GET, `users/${patientId}`);
+      }
+    };
+
+    const fetchAppointments = () => {
+      const q = query(collection(db, 'appointments'), where('patientId', '==', patientId), orderBy('startTime', 'desc'));
+      return onSnapshot(q, (snapshot) => {
+        setAppointments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment)));
+        setLoading(false);
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'appointments'));
+    };
+
+    fetchPatient();
+    const unsubscribe = fetchAppointments();
+    return unsubscribe;
+  }, [patientId]);
+
+  if (loading || !patient) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (showOrthoPortal) {
+    return <OrthoDashboard patientId={patientId} onBack={() => setShowOrthoPortal(false)} />;
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Header */}
+      <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm">
+        <div className="flex items-start justify-between mb-8">
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={onBack}
+              className="p-3 hover:bg-surface-container rounded-2xl transition-colors"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center">
+              <User className="w-10 h-10 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-headline mb-1">{patient.name}</h1>
+              <div className="flex items-center gap-4 text-on-surface-variant text-sm font-medium">
+                <span className="bg-surface-container px-3 py-1 rounded-full">ID: #{patient.uid.slice(-4).toUpperCase()}</span>
+                <span>{patient.age || 27}y {patient.gender || 'Female'}</span>
+                <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Last visit: 16 hours ago</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <Edit3 className="w-5 h-5" />
+              Edit Patient
+            </button>
+            <button className="p-3 hover:bg-surface-container rounded-2xl transition-colors border border-surface-variant">
+              <MoreVertical className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-3 border-t border-surface-variant pt-8">
+          <button 
+            onClick={() => setShowOrthoPortal(true)}
+            className="bg-primary text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:opacity-90 transition-opacity shadow-md"
+          >
+            <Zap className="w-4 h-4" /> Ortho Portal
+          </button>
+          <button className="bg-surface-container text-primary px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/10 transition-colors">
+            <Plus className="w-4 h-4" /> New Appointment
+          </button>
+          <button className="bg-surface-container text-primary px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/10 transition-colors">
+            <Clock className="w-4 h-4" /> New Patient Reminder
+          </button>
+          <button className="bg-surface-container text-primary px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/10 transition-colors">
+            <Plus className="w-4 h-4" /> Add Balance
+          </button>
+          <button className="bg-surface-container text-primary px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/10 transition-colors">
+            <FileText className="w-4 h-4" /> Quick Invoice
+          </button>
+          <button className="bg-surface-container text-primary px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/10 transition-colors">
+            <Smartphone className="w-4 h-4" /> Send SMS
+          </button>
+          <button className="bg-surface-container text-green-600 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-green-50 transition-colors">
+            <MessageSquare className="w-4 h-4" /> WhatsApp
+          </button>
+        </div>
+      </div>
+
+      {/* Info Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm">
+          <h3 className="font-headline text-xl mb-6 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            Patient Information
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Full Name</span>
+                <span className="font-bold">{patient.name}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Phone Number</span>
+                <span className="font-bold text-primary">{patient.phone || '+2001208934765'}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Secondary Phone</span>
+                <span className="font-bold">{patient.secondaryPhone || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Age</span>
+                <span className="font-bold">{patient.age || 27}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Address</span>
+                <span className="font-bold text-right max-w-[200px]">{patient.address || 'Alexandria, Egypt'}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Patient Tags</span>
+                <span className="bg-blue-100 text-blue-700 px-3 py-0.5 rounded-full text-xs font-bold">Diamond</span>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Title</span>
+                <span className="font-bold">{patient.title || 'Ms'}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Gender</span>
+                <span className="font-bold">{patient.gender || 'Female'}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Marital Status</span>
+                <span className="font-bold">{patient.maritalStatus || 'Single'}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Family Members</span>
+                <span className="font-bold">{patient.familyMembers || 0}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Email</span>
+                <span className="font-bold text-primary">{patient.email}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-surface-variant/50">
+                <span className="text-on-surface-variant text-sm font-medium">Nationality</span>
+                <span className="font-bold">{patient.nationality || 'Egyptian'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm">
+            <h3 className="font-headline text-xl mb-6 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-primary" />
+              Financial Status
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-surface-container-low p-4 rounded-2xl border border-surface-variant/50">
+                <span className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Balance</span>
+                <p className="text-2xl font-headline mt-1">EGP {patient.balance || 0}</p>
+              </div>
+              <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                <span className="text-xs text-primary font-bold uppercase tracking-wider">Points</span>
+                <p className="text-2xl font-headline mt-1 text-primary">{patient.points || '3,000'}</p>
+              </div>
+              <div className="bg-surface-container-low p-4 rounded-2xl border border-surface-variant/50">
+                <span className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Remaining</span>
+                <p className="text-2xl font-headline mt-1">EGP 0</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
+                <span className="text-xs text-green-600 font-bold uppercase tracking-wider">Total Paid</span>
+                <p className="text-2xl font-headline mt-1 text-green-600">EGP {patient.totalPayments || 600}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm">
+            <h3 className="font-headline text-xl mb-6 flex items-center gap-2">
+              <History className="w-5 h-5 text-primary" />
+              System Info
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-on-surface-variant">Created By</span>
+                <span className="font-medium">Dr. Mohamed Tulba</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-on-surface-variant">Created At</span>
+                <span className="font-medium">16 hours ago</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-on-surface-variant">Branch</span>
+                <span className="font-medium">S Dental Center</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Medical / Insurance / Emergency */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm">
+          <h3 className="font-headline text-xl mb-6 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-red-500" />
+            Medical History
+          </h3>
+          <div className="bg-surface-container-low rounded-2xl p-6 text-center border border-dashed border-surface-variant">
+            <AlertCircle className="w-8 h-8 text-on-surface-variant/30 mx-auto mb-2" />
+            <p className="text-on-surface-variant text-sm">No medical alerts recorded.</p>
+            <button className="text-primary text-sm font-bold mt-4 hover:underline">+ Add Record</button>
+          </div>
+        </div>
+        <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm">
+          <h3 className="font-headline text-xl mb-6 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-blue-500" />
+            Insurance Details
+          </h3>
+          <div className="bg-surface-container-low rounded-2xl p-6 text-center border border-dashed border-surface-variant">
+            <ShieldCheck className="w-8 h-8 text-on-surface-variant/30 mx-auto mb-2" />
+            <p className="text-on-surface-variant text-sm">No insurance provider linked.</p>
+            <button className="text-primary text-sm font-bold mt-4 hover:underline">+ Link Provider</button>
+          </div>
+        </div>
+        <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm">
+          <h3 className="font-headline text-xl mb-6 flex items-center gap-2">
+            <HeartPulse className="w-5 h-5 text-orange-500" />
+            Emergency Contact
+          </h3>
+          <div className="bg-surface-container-low rounded-2xl p-6 text-center border border-dashed border-surface-variant">
+            <Users className="w-8 h-8 text-on-surface-variant/30 mx-auto mb-2" />
+            <p className="text-on-surface-variant text-sm">No emergency contact set.</p>
+            <button className="text-primary text-sm font-bold mt-4 hover:underline">+ Set Contact</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs & Table */}
+      <div className="bg-white rounded-[32px] border border-surface-variant shadow-sm overflow-hidden">
+        <div className="flex gap-4 border-b border-surface-variant px-8 pt-6 overflow-x-auto">
+          {['Appointments', 'Files', 'Communications', 'Referrals', 'Feedback', 'Points'].map((tab) => (
+            <button 
+              key={tab}
+              onClick={() => setActiveTab(tab.toLowerCase())}
+              className={cn(
+                "pb-4 px-4 font-bold transition-all whitespace-nowrap",
+                activeTab === tab.toLowerCase() ? "text-primary border-b-2 border-primary" : "text-on-surface-variant"
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-8">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <h3 className="font-headline text-2xl">Appointment History</h3>
+            <div className="flex gap-3">
+              <div className="flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-xl border border-surface-variant">
+                <Search className="w-4 h-4 text-on-surface-variant" />
+                <input type="text" placeholder="Search appointments..." className="bg-transparent border-none outline-none text-sm" />
+              </div>
+              <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
+                <Filter className="w-5 h-5" />
+              </button>
+              <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
+                <Download className="w-5 h-5" />
+              </button>
+              <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
+                <Printer className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-surface-container-low text-xs uppercase tracking-wider font-bold text-on-surface-variant">
+                <tr>
+                  <th className="px-6 py-4">Date & Time</th>
+                  <th className="px-6 py-4">Doctor</th>
+                  <th className="px-6 py-4">Service</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Feedback</th>
+                  <th className="px-6 py-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-variant">
+                {appointments.map(a => (
+                  <tr key={a.id} className="hover:bg-surface-container-low transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-bold">{format(a.startTime.toDate(), 'PPP')}</div>
+                      <div className="text-xs text-on-surface-variant">{format(a.startTime.toDate(), 'p')}</div>
+                    </td>
+                    <td className="px-6 py-4 font-medium">{a.dentistName}</td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold",
+                        a.type === 'emergency' ? "bg-red-100 text-red-700" : "bg-surface-container text-on-surface-variant"
+                      )}>
+                        {a.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-xs font-bold",
+                        a.status === 'completed' ? "bg-green-100 text-green-700" : 
+                        a.status === 'cancelled' ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                      )}>
+                        {a.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <Star key={s} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button className="p-2 hover:bg-surface-container rounded-lg transition-colors">
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {appointments.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant italic">
+                      No appointment history found for this patient.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const StaffDashboard = () => {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [experts, setExperts] = useState<Expert[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'appointments' | 'experts' | 'team'>('appointments');
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [selectedOrthoId, setSelectedOrthoId] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collection(db, 'appointments'), orderBy('startTime', 'desc'));
@@ -607,6 +1602,27 @@ const StaffDashboard = () => {
     }
   };
 
+  const [reminderLoading, setReminderLoading] = useState<string | null>(null);
+
+  const sendReminder = async (appointmentId: string, type: 'sms' | 'whatsapp') => {
+    if (!profile) return;
+    setReminderLoading(`${appointmentId}-${type}`);
+    try {
+      const response = await fetch('/api/appointments/send-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, type, adminUid: profile.uid })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to send reminder');
+      alert(`Reminder sent successfully via ${type.toUpperCase()}!`);
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setReminderLoading(null);
+    }
+  };
+
   const seedExperts = async () => {
     try {
       for (const exp of INITIAL_EXPERTS) {
@@ -617,11 +1633,19 @@ const StaffDashboard = () => {
     }
   };
 
+  if (selectedOrthoId) {
+    return <OrthoDashboard patientId={selectedOrthoId} onBack={() => setSelectedOrthoId(null)} />;
+  }
+
+  if (selectedPatientId) {
+    return <PatientProfileView patientId={selectedPatientId} onBack={() => setSelectedPatientId(null)} />;
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-headline">Clinic Operations</h2>
+          <h2 className="text-3xl font-headline">{t('dashboard.staff.title')}</h2>
           <p className="text-on-surface-variant">Manage the master calendar and patient check-ins.</p>
         </div>
         <div className="flex gap-4">
@@ -641,18 +1665,18 @@ const StaffDashboard = () => {
       </div>
 
       <div className="flex gap-4 border-b border-surface-variant overflow-x-auto">
-        <button 
-          onClick={() => setTab('appointments')}
-          className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'appointments' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
-        >
-          Appointments
-        </button>
-        <button 
-          onClick={() => setTab('experts')}
-          className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'experts' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
-        >
-          Manage Experts
-        </button>
+          <button 
+            onClick={() => setTab('appointments')}
+            className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'appointments' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+          >
+            {t('dashboard.staff.appointments')}
+          </button>
+          <button 
+            onClick={() => setTab('experts')}
+            className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'experts' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+          >
+            {t('dashboard.staff.experts')}
+          </button>
         {profile?.role === 'owner' && (
           <button 
             onClick={() => setTab('team')}
@@ -680,6 +1704,7 @@ const StaffDashboard = () => {
                   <th className="px-6 py-4">Patient</th>
                   <th className="px-6 py-4">Dentist</th>
                   <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Reminders</th>
                   <th className="px-6 py-4">Actions</th>
                 </tr>
               </thead>
@@ -687,7 +1712,14 @@ const StaffDashboard = () => {
                 {appointments.map(a => (
                   <tr key={a.id} className="hover:bg-surface-container-low transition-colors">
                     <td className="px-6 py-4 text-sm font-bold">{format(a.startTime.toDate(), 'p')}</td>
-                    <td className="px-6 py-4 text-sm">{a.patientName}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <button 
+                        onClick={() => setSelectedPatientId(a.patientId)}
+                        className="font-bold text-primary hover:underline"
+                      >
+                        {a.patientName}
+                      </button>
+                    </td>
                     <td className="px-6 py-4 text-sm">{a.dentistName}</td>
                     <td className="px-6 py-4">
                       <span className={cn(
@@ -698,16 +1730,60 @@ const StaffDashboard = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <select 
-                        value={a.status}
-                        onChange={(e) => handleStatusUpdate(a.id, e.target.value as Appointment['status'])}
-                        className="text-xs font-bold bg-surface-container-low border border-surface-variant rounded-lg px-2 py-1 outline-none"
-                      >
-                        <option value="booked">Booked</option>
-                        <option value="checked-in">Checked In</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                      <div className="flex flex-col gap-1">
+                        {a.reminderSent_sms && (
+                          <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-fit">
+                            <Smartphone className="w-3 h-3" /> {t('dashboard.staff.reminders.smsSent')}
+                          </span>
+                        )}
+                        {a.reminderSent_whatsapp && (
+                          <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-fit">
+                            <MessageSquare className="w-3 h-3" /> {t('dashboard.staff.reminders.whatsappSent')}
+                          </span>
+                        )}
+                        {!a.reminderSent_sms && !a.reminderSent_whatsapp && (
+                          <span className="text-[10px] text-on-surface-variant opacity-50 italic">{t('dashboard.staff.reminders.noReminders')}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <select 
+                          value={a.status}
+                          onChange={(e) => handleStatusUpdate(a.id, e.target.value as Appointment['status'])}
+                          className="text-xs font-bold bg-surface-container-low border border-surface-variant rounded-lg px-2 py-1 outline-none"
+                        >
+                          <option value="booked">Booked</option>
+                          <option value="checked-in">Checked In</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                        <div className="flex gap-1">
+                          <button 
+                            onClick={() => sendReminder(a.id, 'sms')}
+                            disabled={reminderLoading === `${a.id}-sms`}
+                            className="p-2 hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors disabled:opacity-50"
+                            title="Send SMS Reminder"
+                          >
+                            <Smartphone className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => sendReminder(a.id, 'whatsapp')}
+                            disabled={reminderLoading === `${a.id}-whatsapp`}
+                            className="p-2 hover:bg-surface-container rounded-lg text-green-600 transition-colors disabled:opacity-50"
+                            title="Send WhatsApp Reminder"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => setSelectedOrthoId(a.patientId)}
+                            className="p-2 hover:bg-primary/10 rounded-lg text-primary transition-colors"
+                            title="View Ortho Portal"
+                          >
+                            <Zap className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1747,6 +2823,11 @@ const BookingScreen = () => {
   const { t } = useTranslation();
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [bookedDetails, setBookedDetails] = useState<{
+    patientName: string;
+    service: string;
+    time: Date;
+  } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1757,17 +2838,29 @@ const BookingScreen = () => {
     setLoading(true);
     const formData = new FormData(e.target as HTMLFormElement);
     const type = formData.get('type') as Appointment['type'];
+    const phone = formData.get('phone') as string;
+    const startTime = addHours(startOfDay(new Date()), 10); // Mock time
     
     try {
+      // Update profile with phone if missing
+      if (profile && !profile.phone) {
+        await setDoc(doc(db, 'users', profile.uid), { phone }, { merge: true });
+      }
+
       await addDoc(collection(db, 'appointments'), {
         patientId: profile.uid,
         patientName: profile.name,
         dentistId: 'default_dentist',
         dentistName: 'Dr. Sarah Johnson',
-        startTime: Timestamp.fromDate(addHours(startOfDay(new Date()), 10)), // Mock time
-        endTime: Timestamp.fromDate(addHours(startOfDay(new Date()), 11)),
+        startTime: Timestamp.fromDate(startTime),
+        endTime: Timestamp.fromDate(addHours(startTime, 1)),
         type,
         status: 'booked'
+      });
+      setBookedDetails({
+        patientName: profile.name,
+        service: type,
+        time: startTime
       });
       setSubmitted(true);
     } catch (error) {
@@ -1777,27 +2870,77 @@ const BookingScreen = () => {
     }
   };
 
-  if (submitted) {
+  if (submitted && bookedDetails) {
     return (
-      <div className="pt-32 pb-20 flex items-center justify-center min-h-[80vh]">
+      <div className="pt-32 pb-20 flex items-center justify-center min-h-[80vh] px-6">
         <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-center p-12 bg-white rounded-[40px] shadow-2xl max-w-md"
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          className="bg-white rounded-[40px] shadow-2xl max-w-2xl w-full overflow-hidden border border-surface-variant"
         >
-          <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-10 h-10" />
+          <div className="bg-primary p-12 text-center text-white relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+              <Sparkles className="w-full h-full scale-150 rotate-12" />
+            </div>
+            <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-6 border border-white/30">
+              <CheckCircle2 className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-4xl font-headline mb-2">{t('booking.confirmation.title')}</h2>
+            <p className="text-white/80">{t('booking.success.desc')}</p>
           </div>
-          <h2 className="text-3xl font-headline mb-4">{t('booking.success.title')}</h2>
-          <p className="text-on-surface-variant mb-8">
-            {t('booking.success.desc')}
-          </p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="w-full bg-primary text-white py-4 rounded-2xl font-bold"
-          >
-            {t('booking.success.back')}
-          </button>
+
+          <div className="p-10 space-y-10">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <h3 className="font-headline text-xl flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  {t('booking.confirmation.details')}
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-3 border-b border-surface-variant">
+                    <span className="text-sm text-on-surface-variant font-medium">{t('booking.confirmation.patient')}</span>
+                    <span className="font-bold">{bookedDetails.patientName}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-b border-surface-variant">
+                    <span className="text-sm text-on-surface-variant font-medium">{t('booking.confirmation.service')}</span>
+                    <span className="font-bold capitalize">{bookedDetails.service}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-b border-surface-variant">
+                    <span className="text-sm text-on-surface-variant font-medium">{t('booking.confirmation.date')}</span>
+                    <span className="font-bold">{format(bookedDetails.time, 'PPP p')}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h3 className="font-headline text-xl flex items-center gap-2">
+                  <ArrowRight className="w-5 h-5 text-primary" />
+                  {t('booking.confirmation.nextSteps')}
+                </h3>
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="flex gap-4 items-start">
+                      <div className="w-6 h-6 rounded-full bg-surface-container text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        {i}
+                      </div>
+                      <p className="text-sm text-on-surface-variant leading-relaxed">
+                        {t(`booking.confirmation.step${i}`)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-6">
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full bg-primary text-white py-5 rounded-2xl font-bold shadow-lg hover:bg-primary-container transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {t('booking.confirmation.done')}
+              </button>
+            </div>
+          </div>
         </motion.div>
       </div>
     );
@@ -1819,7 +2962,7 @@ const BookingScreen = () => {
               </div>
               <div>
                 <h4 className="font-bold mb-1">Call Us Directly</h4>
-                <p className="text-on-surface-variant">+1 (555) 000-1234</p>
+                <p className="text-on-surface-variant">+20 100 123 4567</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
@@ -1828,7 +2971,7 @@ const BookingScreen = () => {
               </div>
               <div>
                 <h4 className="font-bold mb-1">Our Location</h4>
-                <p className="text-on-surface-variant">123 Clinical Way, Medical District, NY</p>
+                <p className="text-on-surface-variant">45 El-Batal Ahmed Abdel Aziz St, Mohandessin, Giza, Egypt</p>
               </div>
             </div>
             <div className="flex items-start gap-4">
@@ -1837,7 +2980,7 @@ const BookingScreen = () => {
               </div>
               <div>
                 <h4 className="font-bold mb-1">Working Hours</h4>
-                <p className="text-on-surface-variant">Mon - Sat: 9:00 AM - 8:00 PM</p>
+                <p className="text-on-surface-variant">Sat - Thu: 11:00 AM - 9:00 PM</p>
               </div>
             </div>
           </div>
@@ -1858,6 +3001,10 @@ const BookingScreen = () => {
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">{t('booking.form.email')}</label>
               <input required name="email" type="email" defaultValue={profile?.email} className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none" placeholder="john@example.com" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Phone Number (for reminders)</label>
+              <input required name="phone" type="tel" defaultValue={profile?.phone} className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none" placeholder="+20 100 123 4567" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold ml-1">{t('booking.form.service')}</label>

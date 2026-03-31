@@ -9,7 +9,8 @@
         "email": { "type": "string", "format": "email" },
         "role": { "type": "string", "enum": ["patient", "staff", "dentist"] },
         "name": { "type": "string" },
-        "phone": { "type": "string" }
+        "phone": { "type": "string" },
+        "orthoPlan": { "type": "object", "description": "Orthodontic treatment plan data" }
       },
       "required": ["uid", "email", "role", "name"]
     },
