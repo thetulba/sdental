@@ -99,6 +99,7 @@ import {
 } from 'firebase/firestore';
 import { format, addHours, startOfDay, isSameDay, parseISO, isAfter } from 'date-fns';
 import { useTranslation } from 'react-i18next';
+import { DataImport } from './components/DataImport';
 
 // --- Types ---
 type Role = 'patient' | 'staff' | 'dentist' | 'admin' | 'owner';
@@ -2792,7 +2793,7 @@ const StaffDashboard = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [experts, setExperts] = useState<Expert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'appointments' | 'experts' | 'team'>('appointments');
+  const [tab, setTab] = useState<'appointments' | 'experts' | 'team' | 'import'>('appointments');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedOrthoId, setSelectedOrthoId] = useState<string | null>(null);
 
@@ -2910,12 +2911,20 @@ const StaffDashboard = () => {
             {t('dashboard.staff.experts')}
           </button>
         {profile?.role === 'owner' && (
-          <button 
-            onClick={() => setTab('team')}
-            className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'team' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
-          >
-            Team Management
-          </button>
+          <>
+            <button 
+              onClick={() => setTab('team')}
+              className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'team' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+            >
+              Team Management
+            </button>
+            <button 
+              onClick={() => setTab('import')}
+              className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'import' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+            >
+              Data Import
+            </button>
+          </>
         )}
       </div>
 
@@ -3026,6 +3035,7 @@ const StaffDashboard = () => {
       )}
       {tab === 'experts' && <ExpertManagement experts={experts} />}
       {tab === 'team' && <TeamManagement />}
+      {tab === 'import' && <DataImport />}
     </div>
   );
 };

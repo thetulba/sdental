@@ -21,6 +21,12 @@ service cloud.firestore {
     // Collection: experts
     // Fields: name (string), role (string), bio (string), photoURL (string), order (number)
     //
+    // Collection: invoices
+    // Fields: patientId (string), patientName (string), date (timestamp), items (list of objects), totalAmount (number), status (string)
+    //
+    // Collection: payments
+    // Fields: patientId (string), invoiceId (string), amount (number), date (timestamp), method (string), notes (string)
+    //
     // Collection: hr_profiles
     // Fields: uid (string), baseSalary (number), joiningDate (string), contractType (string), documents (list of objects: { name, url, type })
     //
@@ -111,6 +117,23 @@ service cloud.firestore {
              (!('order' in data) || data.order is number);
     }
 
+    function isValidInvoice(data) {
+      return data.keys().hasAll(['patientId', 'date', 'totalAmount', 'status']) &&
+             data.patientId is string &&
+             data.date is timestamp &&
+             data.totalAmount is number &&
+             data.status in ['unpaid', 'partially-paid', 'paid'] &&
+             (!('items' in data) || data.items is list);
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['patientId', 'amount', 'date', 'method']) &&
+             data.patientId is string &&
+             data.amount is number &&
+             data.date is timestamp &&
+             data.method in ['cash', 'card', 'bank-transfer'];
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -148,6 +171,20 @@ service cloud.firestore {
       allow create: if isStaff() && isValidExpert(request.resource.data);
       allow update: if isStaff() && isValidExpert(request.resource.data);
       allow delete: if isStaff();
+    }
+
+    match /invoices/{id} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isStaff());
+      allow create: if isStaff() && isValidInvoice(request.resource.data);
+      allow update: if isStaff() && isValidInvoice(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{id} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isStaff());
+      allow create: if isStaff() && isValidPayment(request.resource.data);
+      allow update: if isStaff() && isValidPayment(request.resource.data);
+      allow delete: if isAdmin();
     }
   }
 }

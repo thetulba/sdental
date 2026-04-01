@@ -65,6 +65,43 @@
         "order": { "type": "number" }
       },
       "required": ["name", "role", "bio"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "A detailed invoice for dental services.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "items": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          }
+        },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["unpaid", "partially-paid", "paid"] }
+      },
+      "required": ["patientId", "date", "totalAmount", "status"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "A payment record from a patient.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "invoiceId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "method": { "type": "string", "enum": ["cash", "card", "bank-transfer"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["patientId", "amount", "date", "method"]
     }
   },
   "firestore": {
@@ -72,6 +109,8 @@
     "/appointments/{id}": { "schema": "Appointment", "description": "Scheduled appointments" },
     "/clinical_records/{id}": { "schema": "ClinicalRecord", "description": "Patient medical history" },
     "/billing/{id}": { "schema": "Billing", "description": "Financial records" },
-    "/experts/{id}": { "schema": "Expert", "description": "Expert profiles for the public website" }
+    "/experts/{id}": { "schema": "Expert", "description": "Expert profiles for the public website" },
+    "/invoices/{id}": { "schema": "Invoice", "description": "Patient invoices" },
+    "/payments/{id}": { "schema": "Payment", "description": "Patient payment history" }
   }
 }
