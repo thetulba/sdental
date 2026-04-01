@@ -24,6 +24,7 @@ import {
   Trash2,
   LogOut,
   LayoutDashboard,
+  LayoutGrid,
   FileText,
   CreditCard,
   Plus,
@@ -39,6 +40,7 @@ import {
   Briefcase,
   MessageSquare,
   Smartphone,
+  StickyNote,
   User,
   Mail,
   Share2,
@@ -59,7 +61,9 @@ import {
   CalendarDays,
   Timer,
   Target,
-  Zap
+  Zap,
+  MessageCircle,
+  MousePointer2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -87,6 +91,7 @@ import {
   where, 
   addDoc, 
   deleteDoc,
+  updateDoc,
   getDocs,
   Timestamp,
   orderBy
@@ -650,6 +655,8 @@ const OrthoDashboard = ({ patientId, onBack }: { patientId: string; onBack: () =
         action: 'Wire Change & Adjustment',
         summary: 'Upper arch alignment is progressing well. Switched to 0.016 NiTi wire.',
         instructions: 'Continue wearing elastics (Class II) 22 hours a day.',
+        reminderSent_sms: true,
+        reminderSent_whatsapp: false,
         hygiene: {
           score: 8,
           plaqueLevel: 'Low',
@@ -665,6 +672,8 @@ const OrthoDashboard = ({ patientId, onBack }: { patientId: string; onBack: () =
         action: 'Bracket Re-attachment',
         summary: 'Re-attached lower left 2nd premolar bracket. General alignment check.',
         instructions: 'Avoid hard/sticky foods to prevent bracket breakage.',
+        reminderSent_sms: false,
+        reminderSent_whatsapp: true,
         hygiene: {
           score: 6,
           plaqueLevel: 'Moderate',
@@ -705,6 +714,52 @@ const OrthoDashboard = ({ patientId, onBack }: { patientId: string; onBack: () =
 
   const updateWire = (arch: 'upper' | 'lower', wire: string) => {
     setOrthoData({ ...orthoData, [arch === 'upper' ? 'upperWire' : 'lowerWire']: wire });
+  };
+
+  const toggleReminder = async (visitId: string, type: 'sms' | 'whatsapp') => {
+    try {
+      const field = type === 'sms' ? 'reminderSent_sms' : 'reminderSent_whatsapp';
+      const visitIndex = orthoData.visits.findIndex(v => v.id === visitId);
+      if (visitIndex === -1) return;
+
+      const currentStatus = orthoData.visits[visitIndex][field as keyof typeof orthoData.visits[0]];
+      const newStatus = !currentStatus;
+
+      // Update local state
+      const newVisits = [...orthoData.visits];
+      newVisits[visitIndex] = { ...newVisits[visitIndex], [field]: newStatus };
+      setOrthoData({ ...orthoData, visits: newVisits });
+
+      // Update Appointment document in Firestore
+      // Assuming visitId is the Appointment ID
+      const apptRef = doc(db, 'appointments', visitId);
+      await updateDoc(apptRef, {
+        [field]: newStatus,
+        lastReminderSentAt: Timestamp.now()
+      });
+
+      // Also update orthoPlan in user document to keep it in sync
+      const userRef = doc(db, 'users', patientId);
+      await updateDoc(userRef, {
+        'orthoPlan.visits': newVisits
+      });
+
+    } catch (error) {
+      // If appointment doesn't exist (e.g. mock data), we still want to update the user doc
+      try {
+        const visitIndex = orthoData.visits.findIndex(v => v.id === visitId);
+        const field = type === 'sms' ? 'reminderSent_sms' : 'reminderSent_whatsapp';
+        const newVisits = [...orthoData.visits];
+        newVisits[visitIndex] = { ...newVisits[visitIndex], [field]: !orthoData.visits[visitIndex][field as keyof typeof orthoData.visits[0]] };
+        
+        const userRef = doc(db, 'users', patientId);
+        await updateDoc(userRef, {
+          'orthoPlan.visits': newVisits
+        });
+      } catch (innerError) {
+        handleFirestoreError(innerError, OperationType.UPDATE, `appointments/${visitId}`);
+      }
+    }
   };
 
   const saveChanges = async () => {
@@ -963,7 +1018,34 @@ const OrthoDashboard = ({ patientId, onBack }: { patientId: string; onBack: () =
                     <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">{format(visit.date, 'MMMM d, yyyy')}</p>
                     <h3 className="text-lg font-bold text-slate-800">{visit.action}</h3>
                   </div>
-                  <div className="bg-slate-50 px-3 py-1 rounded-full flex items-center gap-2">
+                  <div className="flex items-center gap-4">
+                    {profile?.role !== 'patient' && (
+                      <div className="flex items-center gap-2 border-r border-slate-100 pr-4 mr-2">
+                        <button 
+                          onClick={() => toggleReminder(visit.id, 'sms')}
+                          className={cn(
+                            "p-2 rounded-xl transition-all flex items-center gap-1.5",
+                            visit.reminderSent_sms ? "bg-primary/10 text-primary" : "bg-slate-50 text-slate-400 hover:bg-slate-100"
+                          )}
+                          title="SMS Reminder"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase">SMS</span>
+                        </button>
+                        <button 
+                          onClick={() => toggleReminder(visit.id, 'whatsapp')}
+                          className={cn(
+                            "p-2 rounded-xl transition-all flex items-center gap-1.5",
+                            visit.reminderSent_whatsapp ? "bg-green-500/10 text-green-600" : "bg-slate-50 text-slate-400 hover:bg-slate-100"
+                          )}
+                          title="WhatsApp Reminder"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase">WA</span>
+                        </button>
+                      </div>
+                    )}
+                    <div className="bg-slate-50 px-3 py-1 rounded-full flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-500">Hygiene:</span>
                     <span className={cn(
                       "text-xs font-black",
@@ -973,8 +1055,9 @@ const OrthoDashboard = ({ patientId, onBack }: { patientId: string; onBack: () =
                     </span>
                   </div>
                 </div>
-                
-                <div className="p-6 grid md:grid-cols-2 gap-8">
+              </div>
+              
+              <div className="p-6 grid md:grid-cols-2 gap-8">
                   <div className="space-y-4">
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Progress Summary</p>
@@ -1191,13 +1274,376 @@ const OrthoDashboard = ({ patientId, onBack }: { patientId: string; onBack: () =
   );
 };
 
+const toothShape = {
+  incisor: {
+    crown: "M30 70 C30 85, 35 95, 50 95 C65 95, 70 85, 70 70 L70 50 C70 40, 65 35, 50 35 C35 35, 30 40, 30 50 Z",
+    roots: "M35 35 C35 20, 45 5, 50 5 C55 5, 65 20, 65 35 Z",
+    canals: ["M50 35 L50 15"]
+  },
+  canine: {
+    crown: "M30 70 C30 85, 35 98, 50 98 C65 98, 70 85, 70 70 L70 50 C70 40, 60 30, 50 30 C40 30, 30 40, 30 50 Z",
+    roots: "M35 30 C35 15, 45 2, 50 2 C55 2, 65 15, 65 30 Z",
+    canals: ["M50 30 L50 10"]
+  },
+  premolar: {
+    crown: "M25 65 C25 85, 35 95, 50 95 C65 95, 75 85, 75 65 L75 45 C75 35, 65 30, 50 30 C35 30, 25 35, 25 45 Z",
+    roots: "M30 30 C25 15, 35 5, 45 5 C50 5, 55 15, 55 30 M45 30 C45 15, 55 5, 65 5 C75 5, 70 15, 70 30",
+    canals: ["M40 30 L38 15", "M60 30 L62 15"]
+  },
+  molarUpper: {
+    crown: "M20 60 C20 85, 30 95, 50 95 C70 95, 80 85, 80 60 L80 40 C80 25, 70 20, 50 20 C30 20, 20 25, 20 40 Z",
+    roots: "M25 20 C15 5, 25 0, 35 5 C40 10, 45 15, 45 20 M45 20 C45 10, 55 0, 65 0 C75 0, 75 10, 75 20 M40 20 C40 10, 50 5, 60 20",
+    canals: ["M30 20 L25 5", "M50 20 L55 5", "M70 20 L75 5"]
+  },
+  molarLower: {
+    crown: "M20 60 C20 85, 30 95, 50 95 C70 95, 80 85, 80 60 L80 40 C80 25, 70 20, 50 20 C30 20, 20 25, 20 40 Z",
+    roots: "M25 20 C15 5, 25 2, 40 5 C45 10, 45 15, 45 20 M55 20 C55 15, 55 10, 60 5 C75 2, 85 5, 75 20",
+    canals: ["M35 20 L30 8", "M65 20 L70 8"]
+  }
+};
+
+const occlusalShape = {
+  incisor: "M50 15 C35 15, 25 25, 25 45 C25 65, 35 75, 50 75 C65 75, 75 65, 75 45 C75 25, 65 15, 50 15 Z",
+  canine: "M50 15 C35 15, 25 30, 25 50 C25 70, 35 85, 50 85 C65 85, 75 70, 75 50 C75 30, 65 15, 50 15 Z",
+  premolar: "M50 10 C30 10, 15 25, 15 50 C15 75, 30 90, 50 90 C70 90, 85 75, 85 50 C85 25, 70 10, 50 10 Z",
+  molar: "M50 5 C25 5, 10 25, 10 50 C10 75, 25 95, 50 95 C75 95, 90 75, 90 50 C90 25, 75 5, 50 5 Z",
+};
+
+const statusConfig = {
+  healthy: { label: "Healthy", crown: "#FFFFFF", root: "#F3E5D0", outline: "#B0B0B0", accent: "#D2B48C", color: "bg-white" },
+  filling: { label: "Filling", crown: "#E0F2FE", root: "#F3E5D0", outline: "#0EA5E9", accent: "#7DD3FC", color: "bg-blue-500" },
+  problem: { label: "Problem", crown: "#FFF1F2", root: "#F3E5D0", outline: "#E11D48", accent: "#FDA4AF", color: "bg-rose-500" },
+  missing: { label: "Missing", crown: "#F1F5F9", root: "#F1F5F9", outline: "#94A3B8", accent: "#CBD5E1", color: "bg-slate-500" },
+  rootCanal: { label: "Root canal", crown: "#F5F3FF", root: "#F3E5D0", outline: "#7C3AED", accent: "#C4B5FD", color: "bg-violet-500" },
+};
+
+const ToothFront: React.FC<{ 
+  tooth: any, 
+  status: keyof typeof statusConfig, 
+  isLower?: boolean,
+  findings?: any[] 
+}> = ({ tooth, status, isLower, findings = [] }) => {
+  const config = statusConfig[status];
+  let typeKey = tooth.type;
+  if (typeKey === 'molar') {
+    typeKey = isLower ? 'molarLower' : 'molarUpper';
+  }
+  const shape = toothShape[typeKey as keyof typeof toothShape];
+  
+  return (
+    <svg viewBox="0 0 100 100" className={cn("w-full h-24 overflow-visible transition-all duration-300", isLower ? "rotate-180" : "")}>
+      <defs>
+        <linearGradient id={`rootGrad-${tooth.id}`} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={config.root} />
+          <stop offset="100%" stopColor="#FFFFFF" />
+        </linearGradient>
+        <linearGradient id={`crownGrad-${tooth.id}`} x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stopColor={config.crown} />
+          <stop offset="50%" stopColor="#FFFFFF" stopOpacity="0.5" />
+          <stop offset="100%" stopColor={config.crown} />
+        </linearGradient>
+      </defs>
+      
+      {/* Roots */}
+      <path 
+        d={shape.roots} 
+        fill={`url(#rootGrad-${tooth.id})`} 
+        stroke={config.outline} 
+        strokeWidth="0.8" 
+        className="transition-colors duration-300"
+      />
+      
+      {/* Canals / Shading Layer */}
+      {shape.canals.map((d, i) => (
+        <path key={i} d={d} stroke={config.accent} strokeWidth="0.5" fill="none" opacity="0.4" />
+      ))}
+      
+      {/* Crown - Main Body */}
+      <path 
+        d={shape.crown} 
+        fill={config.crown} 
+        stroke={config.outline} 
+        strokeWidth="1.2" 
+        className="transition-colors duration-300"
+      />
+      
+      {/* Crown - Shading/Highlight Layer */}
+      <path 
+        d={shape.crown} 
+        fill={`url(#crownGrad-${tooth.id})`} 
+        opacity="0.3"
+        pointerEvents="none"
+      />
+
+      {/* Cervical Margin */}
+      <path 
+        d={shape.crown.split('L')[0]} 
+        fill="none"
+        stroke={config.outline}
+        strokeWidth="0.5"
+        opacity="0.4"
+        pointerEvents="none"
+      />
+      
+      {status === "missing" && (
+        <g opacity="0.4">
+          <line x1="20" y1="20" x2="80" y2="80" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
+          <line x1="80" y1="20" x2="20" y2="80" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
+        </g>
+      )}
+      {status === "rootCanal" && <path d="M50 35 L50 75" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" opacity="0.8" />}
+    </svg>
+  );
+};
+
+const ToothCard: React.FC<{ 
+  tooth: any, 
+  isActive: boolean, 
+  onClick: () => void, 
+  findings?: any[],
+  highlightColor?: string 
+}> = ({ tooth, isActive, onClick, findings = [], highlightColor }) => {
+  let status: keyof typeof statusConfig = "healthy";
+  if (findings.some(f => f.type === 'missing')) status = "missing";
+  else if (findings.some(f => f.type === 'caries')) status = "problem";
+  else if (findings.some(f => f.type === 'restoration')) status = "filling";
+  else if (findings.some(f => f.type === 'root-canal')) status = "rootCanal";
+
+  const isLower = tooth.id.startsWith('3') || tooth.id.startsWith('4');
+
+  return (
+    <div 
+      onClick={onClick}
+      className={cn(
+        "group flex flex-col items-center cursor-pointer transition-all duration-300 relative",
+        isActive ? "bg-blue-50/80 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.2)]" : 
+        highlightColor ? highlightColor : "hover:bg-slate-50/50"
+      )}
+    >
+      {isActive && (
+        <div className="absolute -top-6 left-0 right-0 flex justify-center gap-1">
+           <div className="bg-white border border-slate-200 shadow-sm rounded p-0.5">
+             <FileText className="w-3 h-3 text-blue-600" />
+           </div>
+           <div className="bg-white border border-slate-200 shadow-sm rounded p-0.5">
+             <LayoutGrid className="w-3 h-3 text-blue-600" />
+           </div>
+        </div>
+      )}
+      <div className="w-12 p-1">
+        {isLower ? (
+          <div className="flex flex-col gap-1">
+            <ToothOcclusal 
+              toothId={tooth.id} 
+              findings={findings} 
+              onSurfaceClick={() => onClick()} 
+              isSelected={isActive} 
+              size="sm" 
+            />
+            <ToothFront tooth={tooth} status={status} isLower={true} findings={findings} />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <ToothFront tooth={tooth} status={status} isLower={false} findings={findings} />
+            <ToothOcclusal 
+              toothId={tooth.id} 
+              findings={findings} 
+              onSurfaceClick={() => onClick()} 
+              isSelected={isActive} 
+              size="sm" 
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const ToothOcclusal: React.FC<{ 
+  toothId: string, 
+  findings?: { surface: string, type: string, classification?: string }[], 
+  onSurfaceClick: (surface: string) => void,
+  isSelected: boolean,
+  size?: "sm" | "lg"
+}> = ({ 
+  toothId, 
+  findings = [], 
+  onSurfaceClick, 
+  isSelected,
+  size = "sm"
+}) => {
+  const toothNum = parseInt(toothId);
+  const quadrant = Math.floor(toothNum / 10);
+  
+  const getSurfaceColor = (surface: string) => {
+    const finding = findings.find(f => f.surface === surface);
+    if (!finding) return isSelected ? 'fill-blue-50 stroke-blue-400' : 'fill-white stroke-[#D1D5DB] hover:fill-slate-50';
+    if (finding.type === 'caries') return 'fill-rose-100 stroke-rose-500';
+    if (finding.type === 'restoration') return 'fill-blue-100 stroke-blue-500';
+    if (finding.type === 'missing') return 'fill-slate-100 stroke-slate-300';
+    if (finding.type === 'root-canal') return 'fill-violet-100 stroke-violet-500';
+    return 'fill-white stroke-[#D1D5DB]';
+  };
+
+  // In FDI: 
+  // Quadrants 1 and 4 are Right side (from patient's perspective)
+  // Quadrants 2 and 3 are Left side
+  const isRightSide = quadrant === 1 || quadrant === 4;
+  const leftSurface = isRightSide ? 'mesial' : 'distal';
+  const rightSurface = isRightSide ? 'distal' : 'mesial';
+
+  return (
+    <svg viewBox="0 0 100 100" className={cn(size === "sm" ? "w-8 h-8" : "w-24 h-24", "cursor-pointer overflow-visible drop-shadow-md")}>
+      <defs>
+        <radialGradient id={`enamelGrad-${toothId}`} cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+          <stop offset="0%" stopColor="#FFFFFF" />
+          <stop offset="100%" stopColor="#F8FAFC" />
+        </radialGradient>
+        <filter id="innerShadow">
+          <feOffset dx="0.5" dy="0.5" />
+          <feGaussianBlur stdDeviation="1" result="offset-blur" />
+          <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
+          <feFlood floodColor="black" floodOpacity="0.1" result="color" />
+          <feComposite operator="in" in="color" in2="inverse" result="shadow" />
+          <feComposite operator="over" in="shadow" in2="SourceGraphic" />
+        </filter>
+      </defs>
+      {/* Occlusal / Center */}
+      <path 
+        d="M30 30 Q50 25 70 30 Q75 50 70 70 Q50 75 30 70 Q25 50 30 30 Z"
+        className={cn("transition-colors duration-300", getSurfaceColor('occlusal'))}
+        onClick={(e) => { e.stopPropagation(); onSurfaceClick('occlusal'); }}
+        filter="url(#innerShadow)"
+      />
+      {/* Buccal / Top */}
+      <path 
+        d="M5 5 Q50 0 95 5 Q80 25 70 30 Q50 25 30 30 Q20 25 5 5 Z" 
+        className={cn("transition-colors duration-300", getSurfaceColor('buccal'))}
+        onClick={(e) => { e.stopPropagation(); onSurfaceClick('buccal'); }}
+        filter="url(#innerShadow)"
+      />
+      {/* Lingual / Bottom */}
+      <path 
+        d="M30 70 Q50 75 70 70 Q80 75 95 95 Q50 100 5 95 Q20 75 30 70 Z"
+        className={cn("transition-colors duration-300", getSurfaceColor('lingual'))}
+        onClick={(e) => { e.stopPropagation(); onSurfaceClick('lingual'); }}
+        filter="url(#innerShadow)"
+      />
+      {/* Left Surface */}
+      <path 
+        d="M5 5 Q0 50 5 95 Q20 75 30 70 Q25 50 30 30 Q20 25 5 5 Z"
+        className={cn("transition-colors duration-300", getSurfaceColor(leftSurface))}
+        onClick={(e) => { e.stopPropagation(); onSurfaceClick(leftSurface); }}
+        filter="url(#innerShadow)"
+      />
+      {/* Right Surface */}
+      <path 
+        d="M95 5 Q100 50 95 95 Q80 75 70 70 Q75 50 70 30 Q80 25 95 5 Z"
+        className={cn("transition-colors duration-300", getSurfaceColor(rightSurface))}
+        onClick={(e) => { e.stopPropagation(); onSurfaceClick(rightSurface); }}
+        filter="url(#innerShadow)"
+      />
+    </svg>
+  );
+};
+
 const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: () => void }) => {
   const { t } = useTranslation();
   const [patient, setPatient] = useState<UserProfile | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('appointments');
+  const [activeTab, setActiveTab] = useState('medical');
   const [showOrthoPortal, setShowOrthoPortal] = useState(false);
+
+  const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
+  const [toothFindings, setToothFindings] = useState<Record<string, { surface: string, type: string, classification?: string }[]>>({});
+  const [selectedSurface, setSelectedSurface] = useState<{ toothId: string, surface: string } | null>(null);
+
+  const [operations, setOperations] = useState([
+    { id: '1', title: 'Impacted Wisdom Tooth Extraction', date: 'Feb 12, 2026', doctor: 'Dr. Sarah Ahmed', status: 'Healed', type: 'surgery' },
+    { id: '2', title: 'Dental Implant Placement (#14)', date: 'Dec 05, 2025', doctor: 'Dr. Mohamed Tulba', status: 'Integrated', type: 'implant' },
+  ]);
+
+  const [invoices, setInvoices] = useState([
+    { id: 'INV-2026-001', date: 'Mar 10, 2026', amount: 1200.00, status: 'Paid', items: ['Consultation', 'X-Rays'] },
+    { id: 'INV-2026-002', date: 'Mar 25, 2026', amount: 3500.00, status: 'Pending', items: ['Wisdom Tooth Extraction'] },
+  ]);
+
+  const toggleTooth = (toothId: string) => {
+    setSelectedTeeth(prev => 
+      prev.includes(toothId) ? prev.filter(id => id !== toothId) : [...prev, toothId]
+    );
+  };
+
+  const addFinding = (toothId: string, surface: string, type: string, classification?: string) => {
+    const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const toothName = toothId.toUpperCase();
+    
+    setToothFindings(prev => {
+      const current = prev[toothId] || [];
+      const filtered = current.filter(f => f.surface !== surface);
+      return {
+        ...prev,
+        [toothId]: [...filtered, { surface, type, classification }]
+      };
+    });
+
+    // Integration with Operations and Invoices
+    if (type === 'restoration') {
+      const opTitle = `Composite Restoration - Tooth ${toothName} (${surface.toUpperCase()})`;
+      setOperations(prev => [
+        { id: Math.random().toString(36).substr(2, 9), title: opTitle, date, doctor: 'Dr. Mohamed Tulba', status: 'Completed', type: 'restoration' },
+        ...prev
+      ]);
+      setInvoices(prev => [
+        { id: `INV-${Math.floor(Math.random() * 1000)}`, date, amount: 850.00, status: 'Pending', items: [opTitle] },
+        ...prev
+      ]);
+    } else if (type === 'caries') {
+      const opTitle = `Planned: Treatment for Class ${classification} Caries - Tooth ${toothName} (${surface.toUpperCase()})`;
+      setOperations(prev => [
+        { id: Math.random().toString(36).substr(2, 9), title: opTitle, date, doctor: 'Dr. Mohamed Tulba', status: 'Planned', type: 'caries' },
+        ...prev
+      ]);
+    } else if (type === 'missing') {
+      const opTitle = `Extraction - Tooth ${toothName}`;
+      setOperations(prev => [
+        { id: Math.random().toString(36).substr(2, 9), title: opTitle, date, doctor: 'Dr. Mohamed Tulba', status: 'Completed', type: 'extraction' },
+        ...prev
+      ]);
+      setInvoices(prev => [
+        { id: `INV-${Math.floor(Math.random() * 1000)}`, date, amount: 1200.00, status: 'Pending', items: [opTitle] },
+        ...prev
+      ]);
+    } else if (type === 'root-canal') {
+      const opTitle = `Endodontic Treatment (Root Canal) - Tooth ${toothName}`;
+      setOperations(prev => [
+        { id: Math.random().toString(36).substr(2, 9), title: opTitle, date, doctor: 'Dr. Mohamed Tulba', status: 'Completed', type: 'root-canal' },
+        ...prev
+      ]);
+      setInvoices(prev => [
+        { id: `INV-${Math.floor(Math.random() * 1000)}`, date, amount: 2500.00, status: 'Pending', items: [opTitle] },
+        ...prev
+      ]);
+    }
+
+    setSelectedSurface(null);
+  };
+
+  const tabs = [
+    { id: 'medical', label: 'Medical', icon: Activity },
+    { id: 'clinical', label: 'Clinical Chart', icon: Stethoscope },
+    { id: 'perio', label: 'Perio', icon: Smile },
+    { id: 'xrays', label: 'X-Rays', icon: Box },
+    { id: 'gallery', label: 'Gallery', icon: Share2 },
+    { id: 'operations', label: 'Operations', icon: Zap },
+    { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'encounters', label: 'Encounters', icon: Users },
+    { id: 'notes', label: 'Notes', icon: Edit3 },
+    { id: 'timeline', label: 'Timeline', icon: History },
+    { id: 'appointments', label: 'Appointments', icon: Calendar },
+  ];
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -1452,102 +1898,826 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
 
       {/* Tabs & Table */}
       <div className="bg-white rounded-[32px] border border-surface-variant shadow-sm overflow-hidden">
-        <div className="flex gap-4 border-b border-surface-variant px-8 pt-6 overflow-x-auto">
-          {['Appointments', 'Files', 'Communications', 'Referrals', 'Feedback', 'Points'].map((tab) => (
+        <div className="flex gap-2 border-b border-surface-variant px-8 pt-6 overflow-x-auto no-scrollbar">
+          {tabs.map((tab) => (
             <button 
-              key={tab}
-              onClick={() => setActiveTab(tab.toLowerCase())}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "pb-4 px-4 font-bold transition-all whitespace-nowrap",
-                activeTab === tab.toLowerCase() ? "text-primary border-b-2 border-primary" : "text-on-surface-variant"
+                "pb-4 px-4 font-bold transition-all whitespace-nowrap flex items-center gap-2",
+                activeTab === tab.id ? "text-primary border-b-2 border-primary" : "text-on-surface-variant hover:text-primary/70"
               )}
             >
-              {tab}
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
             </button>
           ))}
         </div>
 
         <div className="p-8">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-            <h3 className="font-headline text-2xl">Appointment History</h3>
-            <div className="flex gap-3">
-              <div className="flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-xl border border-surface-variant">
-                <Search className="w-4 h-4 text-on-surface-variant" />
-                <input type="text" placeholder="Search appointments..." className="bg-transparent border-none outline-none text-sm" />
+          {activeTab === 'appointments' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+                <h3 className="font-headline text-2xl">Appointment History</h3>
+                <div className="flex gap-3">
+                  <div className="flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-xl border border-surface-variant">
+                    <Search className="w-4 h-4 text-on-surface-variant" />
+                    <input type="text" placeholder="Search appointments..." className="bg-transparent border-none outline-none text-sm" />
+                  </div>
+                  <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
+                    <Filter className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
+                    <Download className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
+                    <Printer className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-              <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
-                <Filter className="w-5 h-5" />
-              </button>
-              <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
-                <Download className="w-5 h-5" />
-              </button>
-              <button className="p-2 hover:bg-surface-container rounded-lg border border-surface-variant">
-                <Printer className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-surface-container-low text-xs uppercase tracking-wider font-bold text-on-surface-variant">
-                <tr>
-                  <th className="px-6 py-4">Date & Time</th>
-                  <th className="px-6 py-4">Doctor</th>
-                  <th className="px-6 py-4">Service</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Feedback</th>
-                  <th className="px-6 py-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-variant">
-                {appointments.map(a => (
-                  <tr key={a.id} className="hover:bg-surface-container-low transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-bold">{format(a.startTime.toDate(), 'PPP')}</div>
-                      <div className="text-xs text-on-surface-variant">{format(a.startTime.toDate(), 'p')}</div>
-                    </td>
-                    <td className="px-6 py-4 font-medium">{a.dentistName}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold",
-                        a.type === 'emergency' ? "bg-red-100 text-red-700" : "bg-surface-container text-on-surface-variant"
-                      )}>
-                        {a.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold",
-                        a.status === 'completed' ? "bg-green-100 text-green-700" : 
-                        a.status === 'cancelled' ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-                      )}>
-                        {a.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map(s => (
-                          <Star key={s} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-surface-container-low text-xs uppercase tracking-wider font-bold text-on-surface-variant">
+                    <tr>
+                      <th className="px-6 py-4">Date & Time</th>
+                      <th className="px-6 py-4">Doctor</th>
+                      <th className="px-6 py-4">Service</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4">Feedback</th>
+                      <th className="px-6 py-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-variant">
+                    {appointments.map(a => (
+                      <tr key={a.id} className="hover:bg-surface-container-low transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="font-bold">{format(a.startTime.toDate(), 'PPP')}</div>
+                          <div className="text-xs text-on-surface-variant">{format(a.startTime.toDate(), 'p')}</div>
+                        </td>
+                        <td className="px-6 py-4 font-medium">{a.dentistName}</td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-xs font-bold",
+                            a.type === 'emergency' ? "bg-red-100 text-red-700" : "bg-surface-container text-on-surface-variant"
+                          )}>
+                            {a.type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-xs font-bold",
+                            a.status === 'completed' ? "bg-green-100 text-green-700" : 
+                            a.status === 'cancelled' ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                          )}>
+                            {a.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map(s => (
+                              <Star key={s} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button className="p-2 hover:bg-surface-container rounded-lg transition-colors">
+                            <ChevronRight className="w-5 h-5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {appointments.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant italic">
+                          No appointment history found for this patient.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'medical' && (
+            <div className="animate-in fade-in duration-500 space-y-8">
+              <div className="flex justify-between items-center">
+                <h3 className="font-headline text-2xl">Medical History & Alerts</h3>
+                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Add Medical Alert
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-red-50 border border-red-100 p-6 rounded-[24px]">
+                  <h4 className="font-bold text-red-800 mb-4 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" /> Allergies
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {['Penicillin', 'Latex', 'Peanuts'].map(a => (
+                      <span key={a} className="bg-white text-red-700 px-3 py-1 rounded-full text-xs font-black border border-red-200">{a}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 p-6 rounded-[24px]">
+                  <h4 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
+                    <Activity className="w-5 h-5" /> Chronic Conditions
+                  </h4>
+                  <div className="space-y-2">
+                    {['Hypertension', 'Type 2 Diabetes'].map(c => (
+                      <div key={c} className="flex items-center gap-2 text-blue-700 text-sm font-bold">
+                        <CheckCircle2 className="w-4 h-4" /> {c}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-[24px] overflow-hidden">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 font-bold text-slate-700">Medical Questionnaire</div>
+                <div className="divide-y divide-slate-100">
+                  {[
+                    { q: 'Are you currently under a physician\'s care?', a: 'Yes - Dr. Ahmed Ali' },
+                    { q: 'Have you ever been hospitalized or had a major operation?', a: 'Yes - Appendectomy (2018)' },
+                    { q: 'Are you taking any medications, pills, or drugs?', a: 'Metformin 500mg' },
+                    { q: 'Do you use tobacco?', a: 'No' },
+                    { q: 'Do you use controlled substances?', a: 'No' },
+                  ].map((item, i) => (
+                    <div key={i} className="px-6 py-4 flex justify-between gap-4">
+                      <span className="text-sm text-slate-600 font-medium">{item.q}</span>
+                      <span className="text-sm font-bold text-slate-900">{item.a}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+              {activeTab === 'clinical' && (
+                <div className="animate-in fade-in duration-500 relative">
+                  <div className="flex justify-between items-center mb-8">
+                    <div className="flex flex-col gap-1">
+                      <h3 className="font-headline text-2xl">Clinical Chart</h3>
+                      <p className="text-sm text-slate-500">Professional odontogram with realistic anatomy and surface charting.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold">Adult Chart</button>
+                      <button className="bg-surface-container text-on-surface-variant px-4 py-2 rounded-xl text-sm font-bold">Pediatric Chart</button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+                    <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm overflow-x-auto relative">
+                      {/* Quadrant Dividers */}
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div className="w-px h-full bg-slate-200/50 z-0" />
+                        <div className="absolute w-full h-px bg-slate-200/50 z-0" />
+                      </div>
+
+                      <div className="min-w-[800px] relative z-10">
+                        {/* Top Red Marker */}
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-4 h-1.5 bg-red-500 rounded-full" />
+                        
+                        {/* Upper Arch (18-28) */}
+                        <div className="flex justify-center gap-0 mb-0">
+                          <div className="flex gap-0">
+                            {[18, 17, 16, 15, 14, 13, 12, 11].map(num => {
+                              const id = `${num}`;
+                              const typeNum = num % 10;
+                              const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
+                              const isPurple = [13, 14, 15].includes(num);
+                              return (
+                                <ToothCard 
+                                  key={id} 
+                                  tooth={{ id, label: num, type }} 
+                                  isActive={selectedTeeth.includes(id)}
+                                  onClick={() => toggleTooth(id)}
+                                  findings={toothFindings[id]}
+                                  highlightColor={isPurple ? "bg-purple-50/50" : undefined}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="w-px bg-slate-200 self-stretch mx-2" />
+                          <div className="flex gap-0">
+                            {[21, 22, 23, 24, 25, 26, 27, 28].map(num => {
+                              const id = `${num}`;
+                              const typeNum = num % 10;
+                              const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
+                              const isPurple = [24, 25].includes(num);
+                              return (
+                                <ToothCard 
+                                  key={id} 
+                                  tooth={{ id, label: num, type }} 
+                                  isActive={selectedTeeth.includes(id)}
+                                  onClick={() => toggleTooth(id)}
+                                  findings={toothFindings[id]}
+                                  highlightColor={isPurple ? "bg-purple-50/50" : undefined}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Numbering Row */}
+                        <div className="flex justify-center gap-0 py-0 border-y border-slate-100 bg-slate-50/30">
+                          <div className="flex gap-0">
+                            {[18, 17, 16, 15, 14, 13, 12, 11].map(num => (
+                              <div 
+                                key={num} 
+                                className={cn(
+                                  "w-12 text-center text-[11px] font-black py-1 transition-colors",
+                                  selectedTeeth.includes(`${num}`) ? "text-white bg-blue-500" : 
+                                  [13, 14, 15].includes(num) ? "bg-purple-100/50 text-slate-500" : "text-slate-400"
+                                )}
+                              >
+                                {num % 10}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="w-px bg-slate-300 self-stretch mx-2" />
+                          <div className="flex gap-0">
+                            {[21, 22, 23, 24, 25, 26, 27, 28].map(num => (
+                              <div 
+                                key={num} 
+                                className={cn(
+                                  "w-12 text-center text-[11px] font-black py-1 transition-colors",
+                                  selectedTeeth.includes(`${num}`) ? "text-white bg-blue-500" : 
+                                  [24, 25].includes(num) ? "bg-purple-100/50 text-slate-500" : "text-slate-400"
+                                )}
+                              >
+                                {num % 10}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Lower Arch (48-38) */}
+                        <div className="flex justify-center gap-0 mt-0">
+                          <div className="flex gap-0">
+                            {[48, 47, 46, 45, 44, 43, 42, 41].map(num => {
+                              const id = `${num}`;
+                              const typeNum = num % 10;
+                              const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
+                              return (
+                                <ToothCard 
+                                  key={id} 
+                                  tooth={{ id, label: num, type }} 
+                                  isActive={selectedTeeth.includes(id)}
+                                  onClick={() => toggleTooth(id)}
+                                  findings={toothFindings[id]}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="w-px bg-slate-200 self-stretch mx-2" />
+                          <div className="flex gap-0">
+                            {[31, 32, 33, 34, 35, 36, 37, 38].map(num => {
+                              const id = `${num}`;
+                              const typeNum = num % 10;
+                              const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
+                              return (
+                                <ToothCard 
+                                  key={id} 
+                                  tooth={{ id, label: num, type }} 
+                                  isActive={selectedTeeth.includes(id)}
+                                  onClick={() => toggleTooth(id)}
+                                  findings={toothFindings[id]}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                  {/* Legend */}
+                  <div className="mt-12 pt-8 border-t border-slate-50 grid grid-cols-2 gap-8">
+                    <div>
+                      <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Status Legend</h5>
+                      <div className="grid grid-cols-2 gap-3">
+                        {Object.entries(statusConfig).map(([key, config]) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <div className={cn("w-3 h-3 rounded-full border border-black/5", config.color)} />
+                            <span className="text-xs font-medium text-slate-600">{config.label}</span>
+                          </div>
                         ))}
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button className="p-2 hover:bg-surface-container rounded-lg transition-colors">
-                        <ChevronRight className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {appointments.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-on-surface-variant italic">
-                      No appointment history found for this patient.
-                    </td>
-                  </tr>
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Caries Classification</h5>
+                      <div className="grid grid-cols-3 gap-1">
+                        {['I', 'II', 'III', 'IV', 'V', 'VI'].map(c => (
+                          <div key={c} className="text-[10px] bg-slate-50 border border-slate-100 rounded px-1 py-0.5 text-center text-slate-500 font-bold">Class {c}</div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sidebar Details */}
+                <div className="space-y-6">
+                  <div className="bg-white rounded-[32px] p-6 border border-surface-variant shadow-sm">
+                    <h4 className="font-bold text-slate-800 mb-1">Tooth Details</h4>
+                    <p className="text-xs text-slate-500 mb-6">Select a tooth to record findings.</p>
+
+                    {selectedTeeth.length > 0 ? (
+                      <div className="space-y-6">
+                        <div className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center font-black text-primary border border-slate-100">
+                              {selectedTeeth[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Selected Tooth</p>
+                              <p className="text-sm font-bold text-slate-800">
+                                FDI Tooth {selectedTeeth[0]}
+                              </p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => setSelectedTeeth([])}
+                            className="p-2 hover:bg-white rounded-full transition-colors text-slate-400"
+                          >
+                            <Plus className="w-4 h-4 rotate-45" />
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Quick Status</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {Object.entries(statusConfig).map(([key, config]) => (
+                              <button
+                                key={key}
+                                onClick={() => {
+                                  // Apply status to all selected surfaces or the whole tooth
+                                  addFinding(selectedTeeth[0], 'occlusal', key as any);
+                                }}
+                                className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 hover:border-primary hover:bg-primary/5 transition-all group"
+                              >
+                                <div className={cn("w-3 h-3 rounded-full border border-black/5", config.color)} />
+                                <span className="text-[10px] font-bold text-slate-600 group-hover:text-primary">{config.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Surface Charting</label>
+                          <div className="flex justify-center p-4 bg-slate-50 rounded-2xl">
+                            <ToothOcclusal 
+                              toothId={selectedTeeth[0]}
+                              findings={toothFindings[selectedTeeth[0]]}
+                              isSelected={true}
+                              onSurfaceClick={(surface) => setSelectedSurface({ toothId: selectedTeeth[0], surface })}
+                              size="lg"
+                            />
+                          </div>
+                          <p className="text-[10px] text-center text-slate-400 mt-2 italic">Click a surface to record detailed findings</p>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100">
+                          <button
+                            onClick={() => {
+                              setToothFindings(prev => {
+                                const { [selectedTeeth[0]]: _, ...rest } = prev;
+                                return rest;
+                              });
+                            }}
+                            className="w-full py-2.5 rounded-xl border border-red-100 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" /> Clear All Findings
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-12 text-center">
+                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <MousePointer2 className="w-6 h-6 text-slate-300" />
+                        </div>
+                        <p className="text-sm text-slate-400 font-medium italic">Click a tooth on the chart to view details and record findings.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-100">
+                    <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                      <History className="w-4 h-4 text-primary" />
+                      Recent Findings
+                    </h4>
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                      {Object.entries(toothFindings).length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-xs text-slate-400 font-medium italic">No findings recorded yet.</p>
+                        </div>
+                      ) : (
+                        Object.entries(toothFindings).map(([toothId, findings]) => (
+                          <div key={toothId} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-black text-blue-600 uppercase tracking-widest">Tooth {toothId}</span>
+                              <span className="text-[10px] text-slate-400 font-bold">{(findings as any[]).length} Finding(s)</span>
+                            </div>
+                            <div className="space-y-2">
+                              {(findings as any[]).map((f, i) => (
+                                <div key={i} className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <div className={cn(
+                                      "w-2 h-2 rounded-full",
+                                      f.type === 'caries' ? "bg-rose-500" : 
+                                      f.type === 'restoration' ? "bg-blue-500" : 
+                                      f.type === 'root-canal' ? "bg-violet-500" : "bg-slate-400"
+                                    )} />
+                                    <span className="font-bold text-slate-700 capitalize">{f.surface} {f.type}</span>
+                                  </div>
+                                  {f.classification && (
+                                    <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-black text-[9px]">Class {f.classification}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Finding Selection Modal */}
+              <AnimatePresence>
+                {selectedSurface && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                      className="bg-white rounded-[32px] p-8 w-full max-w-md shadow-2xl border border-slate-100"
+                    >
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center font-black text-primary border border-primary/20">
+                            {selectedSurface.toothId.toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-headline text-xl">Record Finding</h4>
+                            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{selectedSurface.surface} Surface</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setSelectedSurface(null)}
+                          className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                        >
+                          <X className="w-6 h-6 text-slate-400" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Finding Type</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { id: 'caries', label: 'Caries', icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50' },
+                              { id: 'restoration', label: 'Restoration', icon: ShieldCheck, color: 'text-purple-500', bg: 'bg-purple-50' },
+                              { id: 'missing', label: 'Missing', icon: XCircle, color: 'text-slate-500', bg: 'bg-slate-50' },
+                              { id: 'root-canal', label: 'Root Canal', icon: Zap, color: 'text-orange-500', bg: 'bg-orange-50' },
+                            ].map(type => (
+                              <button
+                                key={type.id}
+                                onClick={() => {
+                                  if (type.id !== 'caries') {
+                                    addFinding(selectedSurface.toothId, selectedSurface.surface, type.id);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex flex-col items-center gap-2 p-4 rounded-2xl border border-slate-100 hover:border-primary hover:bg-primary/5 transition-all group",
+                                  type.id === 'caries' ? "cursor-default opacity-50" : ""
+                                )}
+                              >
+                                <div className={cn("p-2 rounded-xl", type.bg)}>
+                                  <type.icon className={cn("w-5 h-5", type.color)} />
+                                </div>
+                                <span className="text-xs font-bold text-slate-600 group-hover:text-primary">{type.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* G.V. Black classification for Caries */}
+                        <div className="pt-6 border-t border-slate-100">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">G.V. Black Classification (Caries Only)</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {['I', 'II', 'III', 'IV', 'V', 'VI'].map(cls => (
+                              <button
+                                key={cls}
+                                onClick={() => addFinding(selectedSurface.toothId, selectedSurface.surface, 'caries', cls)}
+                                className="py-2 rounded-xl border border-slate-100 hover:border-red-400 hover:bg-red-50 text-xs font-black text-slate-500 hover:text-red-600 transition-all"
+                              >
+                                Class {cls}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </AnimatePresence>
+            </div>
+          )}
+
+          {activeTab === 'perio' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-headline text-2xl">Periodontal Charting</h3>
+                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> New Perio Exam
+                </button>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-[24px] overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 font-bold text-slate-700">
+                    <tr>
+                      <th className="px-6 py-4">Tooth</th>
+                      <th className="px-6 py-4">Probing Depths (F)</th>
+                      <th className="px-6 py-4">Gingival Margin</th>
+                      <th className="px-6 py-4">Bleeding</th>
+                      <th className="px-6 py-4">Mobility</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {[1, 2, 3, 4, 5].map(t => (
+                      <tr key={t}>
+                        <td className="px-6 py-4 font-bold">#{t}</td>
+                        <td className="px-6 py-4">3 2 3</td>
+                        <td className="px-6 py-4">0 0 0</td>
+                        <td className="px-6 py-4 text-red-500 font-bold">Yes</td>
+                        <td className="px-6 py-4">0</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'xrays' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-headline text-2xl">X-Rays & Imaging</h3>
+                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                  <Upload className="w-4 h-4" /> Upload Scan
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {[
+                  { title: 'Panoramic X-Ray', date: 'Mar 15, 2026', type: 'OPG' },
+                  { title: 'Cephalometric', date: 'Mar 15, 2026', type: 'CEPH' },
+                  { title: 'Bitewing Left', date: 'Jan 10, 2026', type: 'BW' },
+                  { title: 'Bitewing Right', date: 'Jan 10, 2026', type: 'BW' },
+                ].map((scan, i) => (
+                  <div key={i} className="group relative bg-slate-100 rounded-2xl aspect-square overflow-hidden border border-slate-200 cursor-pointer">
+                    <img 
+                      src={`https://picsum.photos/seed/xray${i}/400/400?grayscale`} 
+                      alt={scan.title} 
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-white">
+                      <p className="text-xs font-black uppercase tracking-widest opacity-70">{scan.type}</p>
+                      <p className="font-bold text-sm">{scan.title}</p>
+                      <p className="text-[10px] opacity-70">{scan.date}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'gallery' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-headline text-2xl">Clinical Gallery</h3>
+                <div className="flex gap-2">
+                  <button className="bg-surface-container px-4 py-2 rounded-xl text-sm font-bold">Before/After</button>
+                  <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                    <Plus className="w-4 h-4" /> Add Photos
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="rounded-2xl aspect-square overflow-hidden border border-slate-200 shadow-sm">
+                    <img 
+                      src={`https://picsum.photos/seed/dental${i}/400/400`} 
+                      alt={`Clinical ${i}`} 
+                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'operations' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-headline text-2xl">Surgical & Major Operations</h3>
+                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Record Operation
+                </button>
+              </div>
+              <div className="space-y-4">
+                {operations.map((op, i) => (
+                  <div key={op.id} className="bg-white border border-slate-200 p-6 rounded-[24px] flex justify-between items-center hover:border-primary/30 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        "p-3 rounded-2xl",
+                        op.status === 'Planned' ? "bg-amber-100" : "bg-primary/10"
+                      )}>
+                        <Zap className={cn("w-6 h-6", op.status === 'Planned' ? "text-amber-600" : "text-primary")} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg">{op.title}</h4>
+                        <p className="text-sm text-slate-500">{op.doctor} • {op.date}</p>
+                      </div>
+                    </div>
+                    <span className={cn(
+                      "px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest",
+                      op.status === 'Healed' || op.status === 'Integrated' || op.status === 'Completed' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                    )}>{op.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'invoices' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-headline text-2xl">Invoices & Billing</h3>
+                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Create Invoice
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 font-bold text-slate-700 text-xs uppercase tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4">Invoice #</th>
+                      <th className="px-6 py-4">Date</th>
+                      <th className="px-6 py-4">Items</th>
+                      <th className="px-6 py-4">Amount</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {invoices.map(inv => (
+                      <tr key={inv.id}>
+                        <td className="px-6 py-4 font-bold">{inv.id}</td>
+                        <td className="px-6 py-4 text-slate-500">{inv.date}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {inv.items.map((item, i) => (
+                              <span key={i} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">{item}</span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-black">EGP {inv.amount.toLocaleString()}</td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                            inv.status === 'Paid' ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
+                          )}>
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button className="text-primary font-bold text-sm hover:underline">Download PDF</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'payments' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-headline text-2xl">Payment History</h3>
+                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Record Payment
+                </button>
+              </div>
+              <div className="space-y-4">
+                {[
+                  { method: 'Credit Card', date: 'Mar 10, 2026', amount: 'EGP 1,200', ref: 'TXN-98234' },
+                  { method: 'Cash', date: 'Feb 15, 2026', amount: 'EGP 800', ref: 'CASH-102' },
+                ].map((p, i) => (
+                  <div key={i} className="flex items-center justify-between p-6 bg-slate-50 rounded-[24px] border border-slate-100">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white p-3 rounded-2xl shadow-sm">
+                        <CreditCard className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-black text-lg">{p.amount}</p>
+                        <p className="text-xs text-slate-500 font-medium">{p.method} • {p.date}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reference</p>
+                      <p className="text-sm font-bold text-slate-600">{p.ref}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'encounters' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-headline text-2xl">Patient Encounters</h3>
+                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> New Encounter
+                </button>
+              </div>
+              <div className="space-y-6">
+                {[
+                  { type: 'Consultation', date: 'Mar 15, 2026', note: 'Patient complained of sensitivity in upper right molar. Recommended X-ray.', doctor: 'Dr. Mohamed Tulba' },
+                  { type: 'Follow-up', date: 'Feb 28, 2026', note: 'Post-extraction checkup. Healing well, no signs of infection.', doctor: 'Dr. Sarah Ahmed' },
+                ].map((e, i) => (
+                  <div key={i} className="relative pl-8 border-l-2 border-slate-100 pb-8 last:pb-0">
+                    <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-primary border-4 border-white shadow-sm" />
+                    <div className="bg-white border border-slate-200 p-6 rounded-[24px] shadow-sm">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{e.type}</span>
+                          <h4 className="font-headline text-lg mt-2">{e.doctor}</h4>
+                        </div>
+                        <span className="text-sm text-slate-400 font-medium">{e.date}</span>
+                      </div>
+                      <p className="text-slate-600 text-sm leading-relaxed">{e.note}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'notes' && (
+            <div className="animate-in fade-in duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h3 className="font-headline text-2xl">Internal Notes</h3>
+                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                  <Plus className="w-4 h-4" /> Add Note
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { title: 'Patient Preference', content: 'Prefers morning appointments. Sensitive to cold water.', author: 'Receptionist', date: 'Jan 20, 2026' },
+                  { title: 'Treatment Plan Note', content: 'Considering Invisalign for lower arch if space closure is successful.', author: 'Dr. Tulba', date: 'Mar 05, 2026' },
+                ].map((note, i) => (
+                  <div key={i} className="bg-yellow-50 border border-yellow-100 p-6 rounded-[24px] relative overflow-hidden">
+                    <StickyNote className="absolute -right-2 -top-2 w-12 h-12 text-yellow-200/50 -rotate-12" />
+                    <h4 className="font-bold text-yellow-900 mb-2">{note.title}</h4>
+                    <p className="text-sm text-yellow-800 mb-4">{note.content}</p>
+                    <div className="flex justify-between items-center text-[10px] font-black text-yellow-700/50 uppercase tracking-widest">
+                      <span>{note.author}</span>
+                      <span>{note.date}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'timeline' && (
+            <div className="animate-in fade-in duration-500">
+              <h3 className="font-headline text-2xl mb-8">Patient Journey Timeline</h3>
+              <div className="space-y-8">
+                {[
+                  { event: 'Treatment Started', date: 'Jan 15, 2026', icon: Zap, color: 'bg-primary' },
+                  { event: 'First Consultation', date: 'Jan 05, 2026', icon: Users, color: 'bg-blue-500' },
+                  { event: 'Patient Registered', date: 'Jan 01, 2026', icon: User, color: 'bg-green-500' },
+                ].map((item, i) => (
+                  <div key={i} className="flex gap-6">
+                    <div className="flex flex-col items-center">
+                      <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg", item.color)}>
+                        <item.icon className="w-6 h-6" />
+                      </div>
+                      {i !== 2 && <div className="w-0.5 h-full bg-slate-100 mt-2" />}
+                    </div>
+                    <div className="pt-2">
+                      <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">{item.date}</p>
+                      <h4 className="font-headline text-xl mt-1">{item.event}</h4>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
