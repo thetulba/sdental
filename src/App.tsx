@@ -75,7 +75,7 @@ import {
   handleFirestoreError, 
   OperationType 
 } from './firebase';
-import { startChat, getDentalAssistantInstruction } from './services/geminiService';
+import { getDentalAssistantChat, getDentalAssistantInstruction } from './services/geminiService';
 import { 
   onAuthStateChanged, 
   User as FirebaseUser,
@@ -4709,8 +4709,12 @@ const ChatAgent = () => {
       "Pediatric Dentistry",
       "Oral Surgery"
     ]);
-    const session = startChat(instruction);
-    setChatSession(session);
+    try {
+      const session = getDentalAssistantChat(instruction);
+      setChatSession(session);
+    } catch (error) {
+      console.error("Chat initialization error:", error);
+    }
   }, []);
 
   const handleSend = async () => {

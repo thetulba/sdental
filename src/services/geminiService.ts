@@ -2,14 +2,32 @@ import { GoogleGenAI } from "@google/genai";
 
 const MODEL_NAME = "gemini-3-flash-preview";
 
-export const startChat = (systemInstruction: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  return ai.chats.create({
-    model: MODEL_NAME,
-    config: {
-      systemInstruction,
-    },
-  });
+export const getDentalAssistantChat = (systemInstruction: string) => {
+  let apiKey: string | undefined;
+  
+  try {
+    apiKey = process.env.GEMINI_API_KEY;
+  } catch (e) {
+    console.warn("Could not access process.env.GEMINI_API_KEY directly.");
+  }
+
+  if (!apiKey) {
+    console.warn("GEMINI_API_KEY is not defined in the environment.");
+    return null;
+  }
+  
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    return ai.chats.create({
+      model: MODEL_NAME,
+      config: {
+        systemInstruction,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to initialize Gemini Chat:", error);
+    return null;
+  }
 };
 
 export const getDentalAssistantInstruction = (clinicName: string, services: string[]) => `
