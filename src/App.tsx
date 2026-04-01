@@ -75,6 +75,7 @@ import {
   handleFirestoreError, 
   OperationType 
 } from './firebase';
+import { startChat, getDentalAssistantInstruction } from './services/geminiService';
 import { 
   onAuthStateChanged, 
   User as FirebaseUser,
@@ -4465,6 +4466,7 @@ function MainContent() {
           else localStorage.removeItem('app-logo');
         }} 
       />
+      <ChatAgent />
     </div>
   );
 }
@@ -4676,6 +4678,162 @@ const PasswordChangeModal = () => {
           </button>
         </form>
       </motion.div>
+    </div>
+  );
+};
+
+// --- AI Chat Agent ---
+
+const ChatAgent = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
+    { role: 'model', text: 'Hello! I am your Dental Assistant. How can I help you today?' }
+  ]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [chatSession, setChatSession] = useState<any>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    const instruction = getDentalAssistantInstruction("S Dental Center", [
+      "Orthodontics",
+      "Dental Implants",
+      "Teeth Whitening",
+      "General Checkup",
+      "Pediatric Dentistry",
+      "Oral Surgery"
+    ]);
+    const session = startChat(instruction);
+    setChatSession(session);
+  }, []);
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading || !chatSession) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setIsLoading(true);
+
+    try {
+      const result = await chatSession.sendMessage({ message: userMessage });
+      const responseText = result.text;
+      setMessages(prev => [...prev, { role: 'model', text: responseText }]);
+    } catch (error) {
+      console.error("Chat Error:", error);
+      setMessages(prev => [...prev, { role: 'model', text: "I'm sorry, I'm having trouble connecting right now. Please try again later or contact us directly." }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[100]">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="absolute bottom-20 right-0 w-[350px] md:w-[400px] h-[500px] bg-white rounded-[32px] shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+          >
+            {/* Header */}
+            <div className="bg-primary p-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">Dental Assistant</p>
+                  <p className="text-[10px] opacity-80">Online & Ready to help</p>
+                </div>
+              </div>
+              <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+              {messages.map((msg, idx) => (
+                <div key={idx} className={cn(
+                  "flex",
+                  msg.role === 'user' ? "justify-end" : "justify-start"
+                )}>
+                  <div className={cn(
+                    "max-w-[80%] p-3 rounded-2xl text-sm shadow-sm",
+                    msg.role === 'user' 
+                      ? "bg-primary text-white rounded-tr-none" 
+                      : "bg-white text-slate-700 border border-slate-100 rounded-tl-none"
+                  )}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm">
+                    <div className="flex gap-1">
+                      <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" />
+                      <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:0.2s]" />
+                      <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:0.4s]" />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Input */}
+            <div className="p-4 bg-white border-t border-slate-100">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Type your message..."
+                  className="w-full bg-slate-100 border-none rounded-full py-3 pl-4 pr-12 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                />
+                <button 
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary text-white rounded-full disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-[10px] text-center text-slate-400 mt-2">Powered by Gemini AI</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-500",
+          isOpen ? "bg-slate-800 text-white rotate-90" : "bg-primary text-white"
+        )}
+      >
+        {isOpen ? <X className="w-8 h-8" /> : <MessageCircle className="w-8 h-8" />}
+        {!isOpen && (
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center"
+          >
+            <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+          </motion.div>
+        )}
+      </motion.button>
     </div>
   );
 };
