@@ -63,14 +63,17 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 // --- Auth Utilities ---
 export const loginWithGoogle = async () => {
+  console.log("Starting Google Login...");
   try {
     const result = await signInWithPopup(auth, googleProvider);
+    console.log("Login successful:", result.user.email);
     return result.user;
   } catch (error: any) {
+    console.error("Login error in firebase.ts:", error.code, error.message);
     if (error.code !== 'auth/popup-blocked' && 
         error.code !== 'auth/cancelled-popup-request' && 
         error.code !== 'auth/popup-closed-by-user') {
-      console.error("Login failed:", error);
+      console.error("Detailed Login failure:", error);
     }
     throw error;
   }

@@ -218,6 +218,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("Auth State Changed:", firebaseUser?.email || "No user");
       setUser(firebaseUser);
       if (firebaseUser) {
         // Fetch or create profile
@@ -226,13 +227,16 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
           const docSnap = await getDoc(userDoc);
           if (docSnap.exists()) {
             const data = docSnap.data() as UserProfile;
+            console.log("Profile fetched:", data.role);
             // Special case for owner email
             if (data.email === "the.tulba@gmail.com" && data.role !== 'owner') {
+              console.log("Updating role to owner...");
               await setDoc(userDoc, { role: 'owner' }, { merge: true });
               data.role = 'owner';
             }
             setProfile(data);
           } else {
+            console.log("Creating new profile...");
             // Default to patient for new users
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
@@ -244,6 +248,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
             setProfile(newProfile);
           }
         } catch (error) {
+          console.error("Error in onAuthStateChanged:", error);
           handleFirestoreError(error, OperationType.GET, 'users');
         }
       } else {
@@ -255,19 +260,24 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async () => {
+    console.log("Login button clicked, isLoggingIn:", isLoggingIn);
     if (isLoggingIn) return;
     setIsLoggingIn(true);
     try {
       await loginWithGoogle();
     } catch (error: any) {
+      console.error("Login Error in App.tsx:", error.code, error.message);
       if (error.code === 'auth/popup-blocked') {
         alert('The login popup was blocked by your browser. Please allow popups for this site and try again.');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        alert('This domain is not authorized for Firebase Authentication. Please add this domain to the "Authorized domains" list in your Firebase Console (Authentication > Settings > Authorized domains).');
       } else if (error.code === 'auth/cancelled-popup-request') {
         console.log('Login popup request was cancelled.');
       } else if (error.code === 'auth/popup-closed-by-user') {
         console.log('Login popup was closed by the user.');
       } else {
         console.error("Login Error:", error);
+        alert('Login failed: ' + (error.message || 'Unknown error'));
       }
     } finally {
       setIsLoggingIn(false);
@@ -1276,37 +1286,83 @@ const OrthoDashboard = ({ patientId, onBack }: { patientId: string; onBack: () =
 
 const toothShape = {
   incisor: {
-    crown: "M30 70 C30 85, 35 95, 50 95 C65 95, 70 85, 70 70 L70 50 C70 40, 65 35, 50 35 C35 35, 30 40, 30 50 Z",
-    roots: "M35 35 C35 20, 45 5, 50 5 C55 5, 65 20, 65 35 Z",
-    canals: ["M50 35 L50 15"]
+    crown: "M35 75 C35 88, 40 95, 50 95 C60 95, 65 88, 65 75 L65 55 C65 45, 60 40, 50 40 C40 40, 35 45, 35 55 Z",
+    roots: "M40 40 C40 20, 48 5, 50 5 C52 5, 60 20, 60 40 Z",
+    canals: ["M50 40 L50 15"],
+    fissures: ["M50 75 L50 90"],
+    cuspTips: []
   },
   canine: {
-    crown: "M30 70 C30 85, 35 98, 50 98 C65 98, 70 85, 70 70 L70 50 C70 40, 60 30, 50 30 C40 30, 30 40, 30 50 Z",
-    roots: "M35 30 C35 15, 45 2, 50 2 C55 2, 65 15, 65 30 Z",
-    canals: ["M50 30 L50 10"]
+    crown: "M35 75 C35 88, 40 98, 50 98 C60 98, 65 88, 65 75 L65 55 C65 45, 55 35, 50 35 C45 35, 35 45, 35 55 Z",
+    roots: "M40 35 C40 15, 48 0, 50 0 C52 0, 60 15, 60 35 Z",
+    canals: ["M50 35 L50 10"],
+    fissures: ["M50 75 L50 95"],
+    cuspTips: ["M50 98 L50 98"]
   },
   premolar: {
-    crown: "M25 65 C25 85, 35 95, 50 95 C65 95, 75 85, 75 65 L75 45 C75 35, 65 30, 50 30 C35 30, 25 35, 25 45 Z",
-    roots: "M30 30 C25 15, 35 5, 45 5 C50 5, 55 15, 55 30 M45 30 C45 15, 55 5, 65 5 C75 5, 70 15, 70 30",
-    canals: ["M40 30 L38 15", "M60 30 L62 15"]
+    crown: "M30 70 C30 88, 38 96, 50 96 C62 96, 70 88, 70 70 L70 50 C70 40, 62 35, 50 35 C38 35, 30 40, 30 50 Z",
+    roots: "M35 35 C32 15, 40 5, 45 5 C48 5, 50 15, 50 35 M50 35 C50 15, 52 5, 55 5 C60 5, 68 15, 65 35",
+    canals: ["M42 35 L40 15", "M58 35 L60 15"],
+    fissures: ["M40 70 Q50 65 60 70"],
+    cuspTips: ["M40 96 L40 96", "M60 96 L60 96"]
   },
   molarUpper: {
-    crown: "M20 60 C20 85, 30 95, 50 95 C70 95, 80 85, 80 60 L80 40 C80 25, 70 20, 50 20 C30 20, 20 25, 20 40 Z",
-    roots: "M25 20 C15 5, 25 0, 35 5 C40 10, 45 15, 45 20 M45 20 C45 10, 55 0, 65 0 C75 0, 75 10, 75 20 M40 20 C40 10, 50 5, 60 20",
-    canals: ["M30 20 L25 5", "M50 20 L55 5", "M70 20 L75 5"]
+    crown: "M20 40 C20 35, 30 32, 50 32 C70 32, 80 35, 80 40 L82 75 C82 90, 70 98, 50 98 C30 98, 18 90, 18 75 Z",
+    roots: "M25 40 C20 20, 25 0, 35 0 C40 0, 45 10, 45 40 M45 40 C45 15, 50 5, 55 5 C60 5, 65 15, 65 40 M55 40 C60 20, 75 0, 80 0 C85 0, 85 20, 75 40",
+    canals: ["M32 40 L35 10", "M50 40 L55 10", "M68 40 L75 10"],
+    fissures: ["M35 70 Q50 65 65 70", "M50 70 L50 90"],
+    cuspTips: ["M30 98 L30 98", "M50 98 L50 98", "M70 98 L70 98"]
   },
   molarLower: {
-    crown: "M20 60 C20 85, 30 95, 50 95 C70 95, 80 85, 80 60 L80 40 C80 25, 70 20, 50 20 C30 20, 20 25, 20 40 Z",
-    roots: "M25 20 C15 5, 25 2, 40 5 C45 10, 45 15, 45 20 M55 20 C55 15, 55 10, 60 5 C75 2, 85 5, 75 20",
-    canals: ["M35 20 L30 8", "M65 20 L70 8"]
+    crown: "M20 40 C20 35, 30 32, 50 32 C70 32, 80 35, 80 40 L82 75 C70 70, 50 75, 30 70 L18 75 Z",
+    roots: "M30 40 C20 15, 25 0, 35 0 C45 0, 48 10, 48 40 M52 40 C52 10, 55 0, 65 0 C75 0, 80 15, 70 40",
+    canals: ["M33 40 L30 10", "M37 40 L38 10", "M63 40 L62 10", "M67 40 L70 10"],
+    fissures: ["M30 70 Q50 65 70 70", "M40 70 L40 85", "M60 70 L60 85"],
+    cuspTips: ["M30 75 L30 75", "M50 75 L50 75", "M70 75 L70 75"]
   }
 };
 
-const occlusalShape = {
-  incisor: "M50 15 C35 15, 25 25, 25 45 C25 65, 35 75, 50 75 C65 75, 75 65, 75 45 C75 25, 65 15, 50 15 Z",
-  canine: "M50 15 C35 15, 25 30, 25 50 C25 70, 35 85, 50 85 C65 85, 75 70, 75 50 C75 30, 65 15, 50 15 Z",
-  premolar: "M50 10 C30 10, 15 25, 15 50 C15 75, 30 90, 50 90 C70 90, 85 75, 85 50 C85 25, 70 10, 50 10 Z",
-  molar: "M50 5 C25 5, 10 25, 10 50 C10 75, 25 95, 50 95 C75 95, 90 75, 90 50 C90 25, 75 5, 50 5 Z",
+const occlusalShapes = {
+  incisor: {
+    occlusal: "M35 45 Q50 42 65 45 Q68 50 65 55 Q50 58 35 55 Q32 50 35 45 Z",
+    buccal: "M15 20 Q50 15 85 20 Q75 40 65 45 Q50 42 35 45 Q25 40 15 20 Z",
+    lingual: "M35 55 Q50 58 65 55 Q75 60 85 80 Q50 85 15 80 Q25 60 35 55 Z",
+    left: "M15 20 Q10 50 15 80 Q25 60 35 55 Q32 50 35 45 Q25 40 15 20 Z",
+    right: "M85 20 Q90 50 85 80 Q75 60 65 55 Q68 50 65 45 Q75 40 85 20 Z",
+    fissures: ["M35 50 L65 50"]
+  },
+  canine: {
+    occlusal: "M40 40 L60 40 L65 50 L50 60 L35 50 Z",
+    buccal: "M10 20 Q50 10 90 20 L75 40 L60 40 L40 40 L25 40 Z",
+    lingual: "M35 50 L50 60 L65 50 L80 80 Q50 90 20 80 Z",
+    left: "M10 20 Q5 50 20 80 L35 50 L40 40 L25 40 Z",
+    right: "M90 20 Q95 50 80 80 L65 50 L60 40 L75 40 Z",
+    fissures: ["M50 40 L50 60"]
+  },
+  premolar: {
+    occlusal: "M30 35 Q50 30 70 35 Q75 50 70 65 Q50 70 30 65 Q25 50 30 35 Z",
+    buccal: "M10 10 Q50 5 90 10 Q80 30 70 35 Q50 30 30 35 Q20 30 10 10 Z",
+    lingual: "M30 65 Q50 70 70 65 Q80 70 90 90 Q50 95 10 90 Q20 70 30 65 Z",
+    left: "M10 10 Q5 50 10 90 Q20 70 30 65 Q25 50 30 35 Q20 30 10 10 Z",
+    right: "M90 10 Q95 50 90 90 Q80 70 70 65 Q75 50 70 35 Q80 30 90 10 Z",
+    fissures: ["M30 50 L70 50"]
+  },
+  molar: {
+    occlusal: "M30 30 C35 25, 45 25, 50 30 C55 25, 65 25, 70 30 C75 35, 75 45, 70 50 C75 55, 75 65, 70 70 C65 75, 55 75, 50 70 C45 75, 35 75, 30 70 C25 65, 25 55, 30 50 C25 45, 25 35, 30 30 Z",
+    buccal: "M5 5 C30 0, 70 0, 95 5 L75 30 C65 25, 35 25, 25 30 Z",
+    lingual: "M25 70 C35 75, 65 75, 75 70 L95 95 C70 100, 30 100, 5 95 Z",
+    left: "M5 5 C0 30, 0 70, 5 95 L25 70 C20 60, 20 40, 25 30 Z",
+    right: "M95 5 C100 30, 100 70, 95 95 L75 70 C80 60, 80 40, 75 30 Z",
+    fissures: ["M30 50 L70 50", "M50 30 L50 70"]
+  },
+  molarLowerFirst: {
+    occlusal: "M20 30 C25 20, 35 20, 40 30 C45 20, 55 20, 60 30 C65 20, 75 20, 80 30 C85 40, 85 60, 80 70 C75 80, 65 80, 60 70 C55 80, 45 80, 40 70 C35 80, 25 80, 20 70 C15 60, 15 40, 20 30 Z",
+    buccal: "M5 5 C35 0, 65 0, 95 5 L80 30 C60 20, 40 20, 20 30 Z",
+    lingual: "M20 70 C40 80, 60 80, 80 70 L95 95 C65 100, 35 100, 5 95 Z",
+    left: "M5 5 C0 40, 0 60, 5 95 L20 70 C15 60, 15 40, 20 30 Z",
+    right: "M95 5 C100 40, 100 60, 95 95 L80 70 C85 60, 85 40, 80 30 Z",
+    fissures: ["M20 50 L80 50", "M40 30 L40 70", "M60 30 L60 70"]
+  }
 };
 
 const statusConfig = {
@@ -1314,7 +1370,6 @@ const statusConfig = {
   filling: { label: "Filling", crown: "#E0F2FE", root: "#F3E5D0", outline: "#0EA5E9", accent: "#7DD3FC", color: "bg-blue-500" },
   problem: { label: "Problem", crown: "#FFF1F2", root: "#F3E5D0", outline: "#E11D48", accent: "#FDA4AF", color: "bg-rose-500" },
   missing: { label: "Missing", crown: "#F1F5F9", root: "#F1F5F9", outline: "#94A3B8", accent: "#CBD5E1", color: "bg-slate-500" },
-  rootCanal: { label: "Root canal", crown: "#F5F3FF", root: "#F3E5D0", outline: "#7C3AED", accent: "#C4B5FD", color: "bg-violet-500" },
 };
 
 const ToothFront: React.FC<{ 
@@ -1322,7 +1377,7 @@ const ToothFront: React.FC<{
   status: keyof typeof statusConfig, 
   isLower?: boolean,
   findings?: any[] 
-}> = ({ tooth, status, isLower, findings = [] }) => {
+}> = ({ tooth, status, isLower }) => {
   const config = statusConfig[status];
   let typeKey = tooth.type;
   if (typeKey === 'molar') {
@@ -1337,11 +1392,17 @@ const ToothFront: React.FC<{
           <stop offset="0%" stopColor={config.root} />
           <stop offset="100%" stopColor="#FFFFFF" />
         </linearGradient>
-        <linearGradient id={`crownGrad-${tooth.id}`} x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor={config.crown} />
-          <stop offset="50%" stopColor="#FFFFFF" stopOpacity="0.5" />
-          <stop offset="100%" stopColor={config.crown} />
-        </linearGradient>
+        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="1.5" />
+          <feOffset dx="0.5" dy="0.5" result="offsetblur" />
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.15" />
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
       
       {/* Roots */}
@@ -1349,49 +1410,65 @@ const ToothFront: React.FC<{
         d={shape.roots} 
         fill={`url(#rootGrad-${tooth.id})`} 
         stroke={config.outline} 
-        strokeWidth="0.8" 
-        className="transition-colors duration-300"
+        strokeWidth="0.5"
+        className="transition-all duration-500"
       />
       
-      {/* Canals / Shading Layer */}
+      {/* Canals (Shading) */}
       {shape.canals.map((d, i) => (
-        <path key={i} d={d} stroke={config.accent} strokeWidth="0.5" fill="none" opacity="0.4" />
+        <path 
+          key={i} 
+          d={d} 
+          fill="none" 
+          stroke={config.accent} 
+          strokeWidth="1.2" 
+          strokeLinecap="round" 
+          opacity="0.25" 
+        />
       ))}
       
-      {/* Crown - Main Body */}
+      {/* Crown */}
       <path 
         d={shape.crown} 
         fill={config.crown} 
         stroke={config.outline} 
-        strokeWidth="1.2" 
-        className="transition-colors duration-300"
-      />
-      
-      {/* Crown - Shading/Highlight Layer */}
-      <path 
-        d={shape.crown} 
-        fill={`url(#crownGrad-${tooth.id})`} 
-        opacity="0.3"
-        pointerEvents="none"
+        strokeWidth="0.8"
+        filter="url(#softShadow)"
+        className="transition-all duration-500"
       />
 
-      {/* Cervical Margin */}
-      <path 
-        d={shape.crown.split('L')[0]} 
-        fill="none"
-        stroke={config.outline}
-        strokeWidth="0.5"
-        opacity="0.4"
-        pointerEvents="none"
-      />
-      
+      {/* Fissures */}
+      {shape.fissures?.map((d, i) => (
+        <path 
+          key={i} 
+          d={d} 
+          fill="none" 
+          stroke={config.outline} 
+          strokeWidth="0.4" 
+          strokeLinecap="round" 
+          opacity="0.4" 
+        />
+      ))}
+
+      {/* Cusp Tips */}
+      {shape.cuspTips?.map((d, i) => (
+        <path 
+          key={i} 
+          d={d} 
+          fill="none" 
+          stroke={config.outline} 
+          strokeWidth="1" 
+          strokeLinecap="round" 
+          opacity="0.6" 
+        />
+      ))}
+
       {status === "missing" && (
         <g opacity="0.4">
           <line x1="20" y1="20" x2="80" y2="80" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
           <line x1="80" y1="20" x2="20" y2="80" stroke="#64748B" strokeWidth="2" strokeLinecap="round" />
         </g>
       )}
-      {status === "rootCanal" && <path d="M50 35 L50 75" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" opacity="0.8" />}
     </svg>
   );
 };
@@ -1407,7 +1484,6 @@ const ToothCard: React.FC<{
   if (findings.some(f => f.type === 'missing')) status = "missing";
   else if (findings.some(f => f.type === 'caries')) status = "problem";
   else if (findings.some(f => f.type === 'restoration')) status = "filling";
-  else if (findings.some(f => f.type === 'root-canal')) status = "rootCanal";
 
   const isLower = tooth.id.startsWith('3') || tooth.id.startsWith('4');
 
@@ -1421,7 +1497,7 @@ const ToothCard: React.FC<{
       )}
     >
       {isActive && (
-        <div className="absolute -top-6 left-0 right-0 flex justify-center gap-1">
+        <div className="absolute -top-6 left-0 right-0 flex justify-center gap-1 z-20">
            <div className="bg-white border border-slate-200 shadow-sm rounded p-0.5">
              <FileText className="w-3 h-3 text-blue-600" />
            </div>
@@ -1435,18 +1511,20 @@ const ToothCard: React.FC<{
           <div className="flex flex-col gap-1">
             <ToothOcclusal 
               toothId={tooth.id} 
+              type={tooth.type}
               findings={findings} 
               onSurfaceClick={() => onClick()} 
               isSelected={isActive} 
               size="sm" 
             />
-            <ToothFront tooth={tooth} status={status} isLower={true} findings={findings} />
+            <ToothFront tooth={tooth} status={status} isLower={true} />
           </div>
         ) : (
           <div className="flex flex-col gap-1">
-            <ToothFront tooth={tooth} status={status} isLower={false} findings={findings} />
+            <ToothFront tooth={tooth} status={status} isLower={false} />
             <ToothOcclusal 
               toothId={tooth.id} 
+              type={tooth.type}
               findings={findings} 
               onSurfaceClick={() => onClick()} 
               isSelected={isActive} 
@@ -1461,12 +1539,14 @@ const ToothCard: React.FC<{
 
 const ToothOcclusal: React.FC<{ 
   toothId: string, 
+  type: "incisor" | "canine" | "premolar" | "molar",
   findings?: { surface: string, type: string, classification?: string }[], 
   onSurfaceClick: (surface: string) => void,
   isSelected: boolean,
   size?: "sm" | "lg"
 }> = ({ 
   toothId, 
+  type,
   findings = [], 
   onSurfaceClick, 
   isSelected,
@@ -1480,69 +1560,60 @@ const ToothOcclusal: React.FC<{
     if (!finding) return isSelected ? 'fill-blue-50 stroke-blue-400' : 'fill-white stroke-[#D1D5DB] hover:fill-slate-50';
     if (finding.type === 'caries') return 'fill-rose-100 stroke-rose-500';
     if (finding.type === 'restoration') return 'fill-blue-100 stroke-blue-500';
-    if (finding.type === 'missing') return 'fill-slate-100 stroke-slate-300';
-    if (finding.type === 'root-canal') return 'fill-violet-100 stroke-violet-500';
     return 'fill-white stroke-[#D1D5DB]';
   };
 
-  // In FDI: 
-  // Quadrants 1 and 4 are Right side (from patient's perspective)
-  // Quadrants 2 and 3 are Left side
   const isRightSide = quadrant === 1 || quadrant === 4;
   const leftSurface = isRightSide ? 'mesial' : 'distal';
   const rightSurface = isRightSide ? 'distal' : 'mesial';
 
+  // Specific check for lower first molars (36, 46)
+  let shapeKey = type;
+  if (type === 'molar' && (toothId === '36' || toothId === '46')) {
+    shapeKey = 'molarLowerFirst' as any;
+  }
+  const shapes = occlusalShapes[shapeKey] || occlusalShapes.molar;
+
   return (
-    <svg viewBox="0 0 100 100" className={cn(size === "sm" ? "w-8 h-8" : "w-24 h-24", "cursor-pointer overflow-visible drop-shadow-md")}>
-      <defs>
-        <radialGradient id={`enamelGrad-${toothId}`} cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-          <stop offset="0%" stopColor="#FFFFFF" />
-          <stop offset="100%" stopColor="#F8FAFC" />
-        </radialGradient>
-        <filter id="innerShadow">
-          <feOffset dx="0.5" dy="0.5" />
-          <feGaussianBlur stdDeviation="1" result="offset-blur" />
-          <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
-          <feFlood floodColor="black" floodOpacity="0.1" result="color" />
-          <feComposite operator="in" in="color" in2="inverse" result="shadow" />
-          <feComposite operator="over" in="shadow" in2="SourceGraphic" />
-        </filter>
-      </defs>
-      {/* Occlusal / Center */}
+    <svg viewBox="0 0 100 100" className={cn(size === "sm" ? "w-8 h-8" : "w-24 h-24", "cursor-pointer overflow-visible drop-shadow-md mx-auto")}>
       <path 
-        d="M30 30 Q50 25 70 30 Q75 50 70 70 Q50 75 30 70 Q25 50 30 30 Z"
+        d={shapes.occlusal}
         className={cn("transition-colors duration-300", getSurfaceColor('occlusal'))}
         onClick={(e) => { e.stopPropagation(); onSurfaceClick('occlusal'); }}
-        filter="url(#innerShadow)"
       />
-      {/* Buccal / Top */}
       <path 
-        d="M5 5 Q50 0 95 5 Q80 25 70 30 Q50 25 30 30 Q20 25 5 5 Z" 
+        d={shapes.buccal} 
         className={cn("transition-colors duration-300", getSurfaceColor('buccal'))}
         onClick={(e) => { e.stopPropagation(); onSurfaceClick('buccal'); }}
-        filter="url(#innerShadow)"
       />
-      {/* Lingual / Bottom */}
       <path 
-        d="M30 70 Q50 75 70 70 Q80 75 95 95 Q50 100 5 95 Q20 75 30 70 Z"
+        d={shapes.lingual}
         className={cn("transition-colors duration-300", getSurfaceColor('lingual'))}
         onClick={(e) => { e.stopPropagation(); onSurfaceClick('lingual'); }}
-        filter="url(#innerShadow)"
       />
-      {/* Left Surface */}
       <path 
-        d="M5 5 Q0 50 5 95 Q20 75 30 70 Q25 50 30 30 Q20 25 5 5 Z"
+        d={shapes.left}
         className={cn("transition-colors duration-300", getSurfaceColor(leftSurface))}
         onClick={(e) => { e.stopPropagation(); onSurfaceClick(leftSurface); }}
-        filter="url(#innerShadow)"
       />
-      {/* Right Surface */}
       <path 
-        d="M95 5 Q100 50 95 95 Q80 75 70 70 Q75 50 70 30 Q80 25 95 5 Z"
+        d={shapes.right}
         className={cn("transition-colors duration-300", getSurfaceColor(rightSurface))}
         onClick={(e) => { e.stopPropagation(); onSurfaceClick(rightSurface); }}
-        filter="url(#innerShadow)"
       />
+      {/* Fissures */}
+      {shapes.fissures?.map((d, i) => (
+        <path 
+          key={i} 
+          d={d} 
+          fill="none" 
+          stroke="#D1D5DB" 
+          strokeWidth="0.6" 
+          strokeLinecap="round" 
+          opacity="0.6" 
+          pointerEvents="none"
+        />
+      ))}
     </svg>
   );
 };
@@ -2066,128 +2137,118 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-                    <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm overflow-x-auto relative">
-                      {/* Quadrant Dividers */}
-                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <div className="w-px h-full bg-slate-200/50 z-0" />
-                        <div className="absolute w-full h-px bg-slate-200/50 z-0" />
-                      </div>
-
-                      <div className="min-w-[800px] relative z-10">
-                        {/* Top Red Marker */}
-                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-4 h-1.5 bg-red-500 rounded-full" />
+                      <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm overflow-x-auto relative">
+                        {/* Red Arch Marker */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1.5 bg-red-500 rounded-b-full z-20" />
                         
-                        {/* Upper Arch (18-28) */}
-                        <div className="flex justify-center gap-0 mb-0">
-                          <div className="flex gap-0">
-                            {[18, 17, 16, 15, 14, 13, 12, 11].map(num => {
-                              const id = `${num}`;
-                              const typeNum = num % 10;
-                              const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
-                              const isPurple = [13, 14, 15].includes(num);
-                              return (
-                                <ToothCard 
-                                  key={id} 
-                                  tooth={{ id, label: num, type }} 
-                                  isActive={selectedTeeth.includes(id)}
-                                  onClick={() => toggleTooth(id)}
-                                  findings={toothFindings[id]}
-                                  highlightColor={isPurple ? "bg-purple-50/50" : undefined}
-                                />
-                              );
-                            })}
-                          </div>
-                          <div className="w-px bg-slate-200 self-stretch mx-2" />
-                          <div className="flex gap-0">
-                            {[21, 22, 23, 24, 25, 26, 27, 28].map(num => {
-                              const id = `${num}`;
-                              const typeNum = num % 10;
-                              const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
-                              const isPurple = [24, 25].includes(num);
-                              return (
-                                <ToothCard 
-                                  key={id} 
-                                  tooth={{ id, label: num, type }} 
-                                  isActive={selectedTeeth.includes(id)}
-                                  onClick={() => toggleTooth(id)}
-                                  findings={toothFindings[id]}
-                                  highlightColor={isPurple ? "bg-purple-50/50" : undefined}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
+                        <div className="min-w-[800px] relative z-10">
+                          <div className="flex flex-col items-center gap-0 relative">
+                            {/* Vertical Divider */}
+                            <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-px bg-slate-100 z-0" />
+                            {/* Horizontal Divider */}
+                            <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-100 -translate-y-1/2 z-0" />
 
-                        {/* Numbering Row */}
-                        <div className="flex justify-center gap-0 py-0 border-y border-slate-100 bg-slate-50/30">
-                          <div className="flex gap-0">
-                            {[18, 17, 16, 15, 14, 13, 12, 11].map(num => (
-                              <div 
-                                key={num} 
-                                className={cn(
-                                  "w-12 text-center text-[11px] font-black py-1 transition-colors",
-                                  selectedTeeth.includes(`${num}`) ? "text-white bg-blue-500" : 
-                                  [13, 14, 15].includes(num) ? "bg-purple-100/50 text-slate-500" : "text-slate-400"
-                                )}
-                              >
-                                {num % 10}
-                              </div>
-                            ))}
-                          </div>
-                          <div className="w-px bg-slate-300 self-stretch mx-2" />
-                          <div className="flex gap-0">
-                            {[21, 22, 23, 24, 25, 26, 27, 28].map(num => (
-                              <div 
-                                key={num} 
-                                className={cn(
-                                  "w-12 text-center text-[11px] font-black py-1 transition-colors",
-                                  selectedTeeth.includes(`${num}`) ? "text-white bg-blue-500" : 
-                                  [24, 25].includes(num) ? "bg-purple-100/50 text-slate-500" : "text-slate-400"
-                                )}
-                              >
-                                {num % 10}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                            {/* Upper Arch (18-28) */}
+                            <div className="flex justify-center gap-2 mb-8 relative z-10">
+                              <div className="flex gap-1">
+                                {[18, 17, 16, 15, 14, 13, 12, 11].map(num => {
+                                  const id = `${num}`;
+                                  const typeNum = num % 10;
+                                  const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
+                                  
+                                  let highlight = "";
+                                  if (id === '16') highlight = "bg-blue-50/50 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.1)]";
+                                  if (['13', '14', '15'].includes(id)) highlight = "bg-purple-50/50 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.1)]";
 
-                        {/* Lower Arch (48-38) */}
-                        <div className="flex justify-center gap-0 mt-0">
-                          <div className="flex gap-0">
-                            {[48, 47, 46, 45, 44, 43, 42, 41].map(num => {
-                              const id = `${num}`;
-                              const typeNum = num % 10;
-                              const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
-                              return (
-                                <ToothCard 
-                                  key={id} 
-                                  tooth={{ id, label: num, type }} 
-                                  isActive={selectedTeeth.includes(id)}
-                                  onClick={() => toggleTooth(id)}
-                                  findings={toothFindings[id]}
-                                />
-                              );
-                            })}
-                          </div>
-                          <div className="w-px bg-slate-200 self-stretch mx-2" />
-                          <div className="flex gap-0">
-                            {[31, 32, 33, 34, 35, 36, 37, 38].map(num => {
-                              const id = `${num}`;
-                              const typeNum = num % 10;
-                              const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
-                              return (
-                                <ToothCard 
-                                  key={id} 
-                                  tooth={{ id, label: num, type }} 
-                                  isActive={selectedTeeth.includes(id)}
-                                  onClick={() => toggleTooth(id)}
-                                  findings={toothFindings[id]}
-                                />
-                              );
-                            })}
+                                  return (
+                                    <ToothCard 
+                                      key={id} 
+                                      tooth={{ id, label: num, type }} 
+                                      isActive={selectedTeeth.includes(id)}
+                                      onClick={() => toggleTooth(id)}
+                                      findings={toothFindings[id]}
+                                      highlightColor={highlight}
+                                    />
+                                  );
+                                })}
+                              </div>
+                              <div className="w-px bg-slate-200 self-stretch mx-2 opacity-0" />
+                              <div className="flex gap-1">
+                                {[21, 22, 23, 24, 25, 26, 27, 28].map(num => {
+                                  const id = `${num}`;
+                                  const typeNum = num % 10;
+                                  const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
+                                  
+                                  let highlight = "";
+                                  if (['24', '25'].includes(id)) highlight = "bg-purple-50/50 shadow-[inset_0_0_0_1px_rgba(168,85,247,0.1)]";
+
+                                  return (
+                                    <ToothCard 
+                                      key={id} 
+                                      tooth={{ id, label: num, type }} 
+                                      isActive={selectedTeeth.includes(id)}
+                                      onClick={() => toggleTooth(id)}
+                                      findings={toothFindings[id]}
+                                      highlightColor={highlight}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Numbering Row */}
+                            <div className="flex justify-center gap-2 py-1 bg-slate-50/50 w-full border-y border-slate-100 relative z-10">
+                               <div className="flex gap-1">
+                                 {[18, 17, 16, 15, 14, 13, 12, 11].map(num => (
+                                   <div key={num} className="w-12 text-center text-[10px] font-bold text-slate-400">{num}</div>
+                                 ))}
+                               </div>
+                               <div className="w-px bg-slate-200 self-stretch mx-2 opacity-0" />
+                               <div className="flex gap-1">
+                                 {[21, 22, 23, 24, 25, 26, 27, 28].map(num => (
+                                   <div key={num} className="w-12 text-center text-[10px] font-bold text-slate-400">{num}</div>
+                                 ))}
+                               </div>
+                            </div>
+
+                            {/* Lower Arch (48-38) */}
+                            <div className="flex justify-center gap-2 mt-8 relative z-10">
+                              <div className="flex gap-1">
+                                {[48, 47, 46, 45, 44, 43, 42, 41].map(num => {
+                                  const id = `${num}`;
+                                  const typeNum = num % 10;
+                                  const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
+                                  return (
+                                    <ToothCard 
+                                      key={id} 
+                                      tooth={{ id, label: num, type }} 
+                                      isActive={selectedTeeth.includes(id)}
+                                      onClick={() => toggleTooth(id)}
+                                      findings={toothFindings[id]}
+                                    />
+                                  );
+                                })}
+                              </div>
+                              <div className="w-px bg-slate-200 self-stretch mx-2 opacity-0" />
+                              <div className="flex gap-1">
+                                {[31, 32, 33, 34, 35, 36, 37, 38].map(num => {
+                                  const id = `${num}`;
+                                  const typeNum = num % 10;
+                                  const type = typeNum <= 2 ? "incisor" : typeNum === 3 ? "canine" : typeNum <= 5 ? "premolar" : "molar";
+                                  return (
+                                    <ToothCard 
+                                      key={id} 
+                                      tooth={{ id, label: num, type }} 
+                                      isActive={selectedTeeth.includes(id)}
+                                      onClick={() => toggleTooth(id)}
+                                      findings={toothFindings[id]}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
                   {/* Legend */}
                   <div className="mt-12 pt-8 border-t border-slate-50 grid grid-cols-2 gap-8">
