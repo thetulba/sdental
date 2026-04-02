@@ -109,6 +109,28 @@ async function startServer() {
     }
   });
 
+  app.post("/api/promo/validate", async (req, res) => {
+    const { code } = req.body;
+    try {
+      const promoRef = db.collection('promocodes').doc(code);
+      const promoDoc = await promoRef.get();
+      if (!promoDoc.exists) {
+        return res.status(404).json({ error: "Invalid promo code" });
+      }
+      const promoData = promoDoc.data();
+      if (!promoData?.isActive) {
+        return res.status(400).json({ error: "Promo code is inactive" });
+      }
+      if (promoData.expiresAt && new Date(promoData.expiresAt) < new Date()) {
+        return res.status(400).json({ error: "Promo code expired" });
+      }
+      res.json({ discountPercent: promoData.discountPercent });
+    } catch (error) {
+      console.error("Error validating promo code:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.post("/api/staff/login", async (req, res) => {
     const { username, password } = req.body;
 

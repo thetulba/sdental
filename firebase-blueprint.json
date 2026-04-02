@@ -154,6 +154,18 @@
         "createdBy": { "type": "string" }
       },
       "required": ["timestamp", "status"]
+    },
+    "PromoCode": {
+      "title": "Promo Code",
+      "description": "Discount code for patients.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "discountPercent": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "discountPercent", "isActive"]
     }
   },
   "firestore": {
@@ -184,6 +196,10 @@
     "/portfolio/{caseId}": {
       "schema": "PortfolioCase",
       "description": "Public portfolio cases."
+    },
+    "/promocodes/{code}": {
+      "schema": "PromoCode",
+      "description": "Valid promo codes."
     }
   }
 }

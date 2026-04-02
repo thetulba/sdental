@@ -103,11 +103,12 @@ import { format, addHours, startOfDay, isSameDay, parseISO, isAfter } from 'date
 import { useTranslation } from 'react-i18next';
 import { DataImport } from './components/DataImport';
 import { GoogleReviews } from './components/GoogleReviews';
+import { PricesScreen } from './components/PricesScreen';
 import { ThemeProvider, useTheme } from './lib/ThemeContext';
 
 // --- Types ---
 type Role = 'patient' | 'staff' | 'dentist' | 'admin' | 'owner';
-type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'staff-portal' | 'contact';
+type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'staff-portal' | 'contact' | 'prices';
 
 interface UserProfile {
   uid: string;
@@ -459,6 +460,7 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
     { label: t('nav.home'), id: 'home' },
     { label: t('nav.experts'), id: 'experts' },
     { label: t('nav.portfolio'), id: 'portfolio' },
+    { label: 'Prices', id: 'prices' },
     { label: 'Contact', id: 'contact' },
     { label: 'Staff Portal', id: 'staff-portal' },
   ];
@@ -4183,13 +4185,6 @@ const Hero = ({ onBook }: { onBook: () => void }) => {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform rtl:rotate-180" />
             </button>
             <div className="flex items-center gap-4 px-4">
-              <div className="flex -space-x-3 rtl:space-x-reverse">
-                {[1,2,3].map(i => (
-                  <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden bg-surface-variant">
-                    <img src={`https://i.pravatar.cc/100?u=${i}`} alt="User" referrerPolicy="no-referrer" />
-                  </div>
-                ))}
-              </div>
               <div className="text-sm text-left">
                 <div className="flex text-yellow-500">
                   {[1,2,3,4,5].map(i => <Star key={i} className="w-3 h-3 fill-current" />)}
@@ -4878,6 +4873,10 @@ const BookingScreen = () => {
               <label className="text-sm font-semibold ml-1">{t('booking.form.message')}</label>
               <textarea name="message" className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none h-32" placeholder="Tell us about your dental goals..."></textarea>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1">Promo Code (Optional)</label>
+              <input name="promoCode" type="text" className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none" placeholder="Enter promo code" />
+            </div>
             <button 
               type="submit" 
               disabled={loading}
@@ -4961,112 +4960,113 @@ function MainContent() {
       
       <main className="flex-grow">
         <AnimatePresence mode="wait">
-          {screen === 'home' && (
-            <motion.div
-              key="home"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <Hero onBook={() => setScreen('booking')} />
-              <Stats />
-              <Services />
-              <section className="py-16 bg-surface">
-                <div className="max-w-7xl mx-auto px-6">
-                  <GoogleReviews placeId="ChIJ5WJDbFw9WBQR3cPDdl6aL-U" />
-                </div>
-              </section>
-              
-              {/* Tech Spotlight Section */}
-              <section className="py-32 bg-on-surface text-white overflow-hidden">
-                <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
-                  <div className="relative">
-                    <div className="aspect-square rounded-[40px] overflow-hidden">
-                      <img 
-                        src="https://images.unsplash.com/photo-1606811841660-1b5168c34714?q=80&w=2070&auto=format&fit=crop" 
-                        alt="Advanced Tech" 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+              {screen === 'home' && (
+                <motion.div
+                  key="home"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <Hero onBook={() => setScreen('booking')} />
+                  <Stats />
+                  <Services />
+                  <section className="py-16 bg-surface">
+                    <div className="max-w-7xl mx-auto px-6">
+                      <GoogleReviews placeId="ChIJ5WJDbFw9WBQR3cPDdl6aL-U" />
                     </div>
-                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
-                  </div>
-                  <div>
-                    <div className="text-primary font-bold mb-4 flex items-center gap-2">
-                      <div className="w-8 h-[2px] bg-primary" />
-                      {t('tech.badge')}
-                    </div>
-                    <h2 className="font-headline text-4xl md:text-5xl mb-8 leading-tight">
-                      {t('tech.title')}
-                    </h2>
-                    <p className="text-white/60 text-lg mb-10 leading-relaxed">
-                      {t('tech.desc')}
-                    </p>
-                    <ul className="space-y-4">
-                      {(t('tech.items', { returnObjects: true }) as string[]).map((item, i) => (
-                        <li key={i} className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary" />
-                          <span className="font-medium">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </section>
-
-              {/* Testimonials */}
-              <section className="py-32">
-                <div className="max-w-7xl mx-auto px-6">
-                   <div className="text-center mb-20">
-                    <h2 className="font-headline text-4xl md:text-5xl mb-6">{t('testimonials.title')}</h2>
-                    <p className="text-on-surface-variant max-w-2xl mx-auto text-lg">
-                      {t('testimonials.subtitle')}
-                    </p>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-8">
-                    {(t('testimonials.items', { returnObjects: true }) as any[]).map((t_item, i) => (
-                      <div key={i} className="p-10 bg-surface-container-low rounded-[32px] border border-surface-variant">
-                        <div className="flex text-yellow-500 mb-6">
-                          {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-current" />)}
+                  </section>
+                  
+                  {/* Tech Spotlight Section */}
+                  <section className="py-32 bg-on-surface text-white overflow-hidden">
+                    <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
+                      <div className="relative">
+                        <div className="aspect-square rounded-[40px] overflow-hidden">
+                          <img 
+                            src="https://images.unsplash.com/photo-1606811841660-1b5168c34714?q=80&w=2070&auto=format&fit=crop" 
+                            alt="Advanced Tech" 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
                         </div>
-                        <p className="text-lg italic text-on-surface mb-8">"{t_item.text}"</p>
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <div className="font-bold">{t_item.name}</div>
-                            <div className="text-xs text-on-surface-variant uppercase tracking-wider">{t_item.role}</div>
-                          </div>
-                        </div>
+                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
+                      <div>
+                        <div className="text-primary font-bold mb-4 flex items-center gap-2">
+                          <div className="w-8 h-[2px] bg-primary" />
+                          {t('tech.badge')}
+                        </div>
+                        <h2 className="font-headline text-4xl md:text-5xl mb-8 leading-tight">
+                          {t('tech.title')}
+                        </h2>
+                        <p className="text-white/60 text-lg mb-10 leading-relaxed">
+                          {t('tech.desc')}
+                        </p>
+                        <ul className="space-y-4">
+                          {(t('tech.items', { returnObjects: true }) as string[]).map((item, i) => (
+                            <li key={i} className="flex items-center gap-3">
+                              <CheckCircle2 className="w-5 h-5 text-primary" />
+                              <span className="font-medium">{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </section>
 
-              {/* Final CTA */}
-              <section className="py-20 px-6">
-                <div className="max-w-7xl mx-auto bg-primary-gradient rounded-[48px] p-12 md:p-24 text-center text-white relative overflow-hidden shadow-2xl">
-                  <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                    <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
-                    <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
-                  </div>
-                  <h2 className="font-headline text-4xl md:text-6xl mb-8 relative z-10">{t('cta.title')}</h2>
-                  <p className="text-white/80 text-lg mb-12 max-w-xl mx-auto relative z-10">
-                    {t('cta.subtitle')}
-                  </p>
-                  <button 
-                    onClick={() => setScreen('booking')}
-                    className="bg-white text-primary px-10 py-5 rounded-2xl font-bold text-lg shadow-xl hover:scale-105 transition-all relative z-10"
-                  >
-                    {t('cta.button')}
-                  </button>
-                </div>
-              </section>
+                  {/* Testimonials */}
+                  <section className="py-32">
+                    <div className="max-w-7xl mx-auto px-6">
+                       <div className="text-center mb-20">
+                        <h2 className="font-headline text-4xl md:text-5xl mb-6">{t('testimonials.title')}</h2>
+                        <p className="text-on-surface-variant max-w-2xl mx-auto text-lg">
+                          {t('testimonials.subtitle')}
+                        </p>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-8">
+                        {(t('testimonials.items', { returnObjects: true }) as any[]).map((t_item, i) => (
+                          <div key={i} className="p-10 bg-surface-container-low rounded-[32px] border border-surface-variant">
+                            <div className="flex text-yellow-500 mb-6">
+                              {[1,2,3,4,5].map(i => <Star key={i} className="w-4 h-4 fill-current" />)}
+                            </div>
+                            <p className="text-lg italic text-on-surface mb-8">"{t_item.text}"</p>
+                            <div className="flex items-center gap-4">
+                              <div>
+                                <div className="font-bold">{t_item.name}</div>
+                                <div className="text-xs text-on-surface-variant uppercase tracking-wider">{t_item.role}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
 
-              <ContactSection />
-            </motion.div>
-          )}
+                  {/* Final CTA */}
+                  <section className="py-20 px-6">
+                    <div className="max-w-7xl mx-auto bg-primary-gradient rounded-[48px] p-12 md:p-24 text-center text-white relative overflow-hidden shadow-2xl">
+                      <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                        <div className="absolute -top-24 -left-24 w-96 h-96 bg-white rounded-full blur-3xl" />
+                        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white rounded-full blur-3xl" />
+                      </div>
+                      <h2 className="font-headline text-5xl mb-6">{t('cta.title')}</h2>
+                      <p className="text-white/80 text-lg mb-12 max-w-2xl mx-auto">{t('cta.subtitle')}</p>
+                      <button onClick={() => setScreen('booking')} className="bg-white text-primary px-10 py-5 rounded-full font-bold hover:scale-105 transition-transform">{t('cta.button')}</button>
+                    </div>
+                  </section>
+                </motion.div>
+              )}
+              {screen === 'prices' && (
+                <motion.div
+                  key="prices"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <PricesScreen />
+                </motion.div>
+              )}
 
-          {screen === 'experts' && <ExpertsScreen />}
+              {screen === 'experts' && <ExpertsScreen />}
           {screen === 'portfolio' && <PortfolioScreen />}
           {screen === 'booking' && <BookingScreen />}
           
