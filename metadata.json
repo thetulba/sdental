@@ -1,5 +1,9 @@
 {
   "name": "S Dental Center",
-  "description": "High-end clinical excellence and aesthetic dentistry. Experience the art of a perfect smile with our expert team and advanced technology.",
-  "requestFramePermissions": ["camera"]
+  "description": "Modern patient management dashboard for dental clinics featuring bulk import, payments, invoicing, and clinical charting.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
 }

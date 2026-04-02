@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode, Component } from 'react';
 import { 
   Menu, 
   X, 
@@ -63,7 +63,9 @@ import {
   Target,
   Zap,
   MessageCircle,
-  MousePointer2
+  MousePointer2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -100,6 +102,7 @@ import {
 import { format, addHours, startOfDay, isSameDay, parseISO, isAfter } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { DataImport } from './components/DataImport';
+import { ThemeProvider, useTheme } from './lib/ThemeContext';
 
 // --- Types ---
 type Role = 'patient' | 'staff' | 'dentist' | 'admin' | 'owner';
@@ -205,14 +208,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const useAuth = () => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
 
 // --- Auth Provider ---
-const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -328,11 +331,57 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 // --- Components ---
 
+const Logo = ({ logo, className = "w-10 h-10", onClick, showSettingsIcon = false }: { logo: string | null, className?: string, onClick?: () => void, showSettingsIcon?: boolean }) => {
+  return (
+    <div 
+      className={cn("relative group/logo", onClick && "cursor-pointer", className)}
+      onClick={onClick}
+    >
+      {logo ? (
+        <div className="relative w-full h-full">
+          <div className="absolute inset-0 bg-black/20 rounded-xl blur-sm translate-y-1 scale-95 group-hover/logo:translate-y-1.5 transition-transform" />
+          <div className="relative bg-surface rounded-xl p-1 shadow-sm border border-surface-variant overflow-hidden group-hover/logo:-translate-y-0.5 transition-transform duration-300 h-full w-full flex items-center justify-center">
+            <img 
+              src={logo} 
+              alt="Logo" 
+              className="max-w-full max-h-full object-contain" 
+              referrerPolicy="no-referrer" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-tr from-black/5 to-white/10 pointer-events-none" />
+          </div>
+        </div>
+      ) : (
+        <div className="w-full h-full relative group/logo">
+          {/* 3D Shadow Layer */}
+          <div className="absolute inset-0 bg-primary/30 rounded-xl blur-md translate-y-2 scale-90 group-hover/logo:translate-y-3 transition-all duration-500" />
+          
+          {/* Main 3D Body */}
+          <div className="relative w-full h-full bg-gradient-to-br from-primary via-primary/90 to-primary-container rounded-xl flex items-center justify-center text-white shadow-[0_10px_20px_-5px_rgba(0,88,190,0.3)] group-hover/logo:-translate-y-1 transition-all duration-300 overflow-hidden border-t border-white/20">
+            {/* Shine Effect */}
+            <div className="absolute -inset-[100%] bg-gradient-to-r from-transparent via-white/20 to-transparent rotate-45 translate-x-[-100%] group-hover/logo:translate-x-[100%] transition-transform duration-1000" />
+            
+            {/* Glass Highlight */}
+            <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent" />
+            
+            <Sparkles className="w-[60%] h-[60%] relative z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
+          </div>
+        </div>
+      )}
+      {showSettingsIcon && (
+        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full shadow-md flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-all duration-300 border border-surface-variant z-20">
+          <Settings className="w-2.5 h-2.5 text-primary" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScreen: Screen, setScreen: (s: Screen) => void, logo: string | null, onOpenSettings: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, login, signOut, isLoggingIn } = useAuth();
   const { t, i18n } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -361,28 +410,18 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
     )}>
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div 
-            className="relative group/logo cursor-pointer"
+          <Logo 
+            logo={logo} 
             onClick={onOpenSettings}
-          >
-            {logo ? (
-              <img src={logo} alt="Logo" className="w-10 h-10 object-contain transition-transform group-hover/logo:scale-110" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg group-hover/logo:scale-110 transition-all duration-300 relative overflow-hidden">
-                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/logo:opacity-100 transition-opacity" />
-                <Sparkles className="w-6 h-6" />
-              </div>
-            )}
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full shadow-sm flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity border border-surface-variant">
-              <Settings className="w-2.5 h-2.5 text-primary" />
-            </div>
-          </div>
+            className="w-11 h-11"
+            showSettingsIcon={true}
+          />
           
           <div 
-            className="cursor-pointer"
+            className="cursor-pointer group"
             onClick={() => setScreen('home')}
           >
-            <span className="font-headline text-xl tracking-tight text-on-surface">
+            <span className="font-headline text-xl tracking-tight text-on-surface group-hover:text-primary transition-colors">
               Dental Center
             </span>
           </div>
@@ -419,6 +458,31 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
               </button>
             ))}
           </div>
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low border border-surface-variant rounded-full text-on-surface-variant hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
+            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+          >
+            <div className="relative w-5 h-5">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={theme}
+                  initial={{ opacity: 0, rotate: -90, scale: 0.5 }}
+                  animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                  exit={{ opacity: 0, rotate: 90, scale: 0.5 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+            <span className="text-xs font-bold uppercase tracking-wider hidden lg:block">
+              {theme === 'light' ? 'Dark' : 'Light'}
+            </span>
+          </button>
 
           {user ? (
             <div className="flex items-center gap-4">
@@ -543,42 +607,42 @@ const PatientDashboard = () => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-headline">{t('dashboard.patient.welcome', { name: profile?.name })}</h2>
+          <h2 className="text-3xl font-headline text-on-surface">{t('dashboard.patient.welcome', { name: profile?.name })}</h2>
           <p className="text-on-surface-variant">{t('dashboard.patient.subtitle')}</p>
         </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-surface-variant">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
+        <div className="bg-surface p-6 rounded-3xl shadow-sm border border-surface-variant dark:bg-surface-container">
+          <div className="w-12 h-12 bg-primary-container/20 text-primary rounded-2xl flex items-center justify-center mb-4">
             <Calendar className="w-6 h-6" />
           </div>
-          <h3 className="font-bold text-lg mb-1">{t('dashboard.patient.nextAppointment')}</h3>
+          <h3 className="font-bold text-lg mb-1 text-on-surface">{t('dashboard.patient.nextAppointment')}</h3>
           <p className="text-sm text-on-surface-variant">
             {appointments.find(a => a.status === 'booked') 
               ? format(appointments.find(a => a.status === 'booked')!.startTime.toDate(), 'PPP p')
               : t('dashboard.patient.noUpcoming')}
           </p>
         </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-surface-variant">
-          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mb-4">
+        <div className="bg-surface p-6 rounded-3xl shadow-sm border border-surface-variant dark:bg-surface-container">
+          <div className="w-12 h-12 bg-secondary-container/20 text-secondary rounded-2xl flex items-center justify-center mb-4">
             <Activity className="w-6 h-6" />
           </div>
-          <h3 className="font-bold text-lg mb-1">{t('dashboard.patient.healthStatus')}</h3>
+          <h3 className="font-bold text-lg mb-1 text-on-surface">{t('dashboard.patient.healthStatus')}</h3>
           <p className="text-sm text-on-surface-variant">{t('dashboard.patient.healthDesc')}</p>
         </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-surface-variant">
-          <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-4">
+        <div className="bg-surface p-6 rounded-3xl shadow-sm border border-surface-variant dark:bg-surface-container">
+          <div className="w-12 h-12 bg-error-container/20 text-error rounded-2xl flex items-center justify-center mb-4">
             <CreditCard className="w-6 h-6" />
           </div>
-          <h3 className="font-bold text-lg mb-1">{t('dashboard.patient.balance')}</h3>
+          <h3 className="font-bold text-lg mb-1 text-on-surface">{t('dashboard.patient.balance')}</h3>
           <p className="text-sm text-on-surface-variant">{t('dashboard.patient.balanceZero')}</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-[32px] border border-surface-variant overflow-hidden">
+      <div className="bg-surface rounded-[32px] border border-surface-variant overflow-hidden dark:bg-surface-container">
         <div className="p-6 border-b border-surface-variant flex items-center justify-between">
-          <h3 className="font-headline text-xl">{t('dashboard.patient.history')}</h3>
+          <h3 className="font-headline text-xl text-on-surface">{t('dashboard.patient.history')}</h3>
           <button className="text-primary text-sm font-bold">{t('dashboard.patient.viewAll')}</button>
         </div>
         <div className="overflow-x-auto">
@@ -594,15 +658,15 @@ const PatientDashboard = () => {
             <tbody className="divide-y divide-surface-variant">
               {appointments.map(a => (
                 <tr key={a.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-6 py-4 text-sm">{format(a.startTime.toDate(), 'PPP')}</td>
-                  <td className="px-6 py-4 text-sm">{a.dentistName}</td>
-                  <td className="px-6 py-4 text-sm capitalize">{a.type}</td>
+                  <td className="px-6 py-4 text-sm text-on-surface">{format(a.startTime.toDate(), 'PPP')}</td>
+                  <td className="px-6 py-4 text-sm text-on-surface">{a.dentistName}</td>
+                  <td className="px-6 py-4 text-sm capitalize text-on-surface">{a.type}</td>
                   <td className="px-6 py-4">
                     <span className={cn(
                       "px-3 py-1 rounded-full text-xs font-bold",
-                      a.status === 'booked' ? "bg-blue-100 text-blue-700" :
-                      a.status === 'completed' ? "bg-green-100 text-green-700" :
-                      "bg-gray-100 text-gray-700"
+                      a.status === 'booked' ? "bg-primary-container text-on-primary-container" :
+                      a.status === 'completed' ? "bg-secondary-container text-on-secondary-container" :
+                      "bg-surface-container-high text-on-surface-variant"
                     )}>
                       {a.status}
                     </span>
@@ -4281,15 +4345,9 @@ const Footer = ({ logo }: { logo: string | null }) => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-2">
-            <div className="flex items-center gap-2 mb-6">
-              {logo ? (
-                <img src={logo} alt="Logo" className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-              )}
-              <span className="font-headline text-xl tracking-tight">Dental Center</span>
+            <div className="flex items-center gap-3 mb-6">
+              <Logo logo={logo} className="w-12 h-12" />
+              <span className="font-headline text-2xl tracking-tight text-white">Dental Center</span>
             </div>
             <p className="text-white/60 max-w-sm leading-relaxed mb-8">
               {t('footer.desc')}
@@ -4454,7 +4512,7 @@ function MainContent() {
           {screen === 'booking' && <BookingScreen />}
           
           {screen === 'dashboard' && (
-            <div className="pt-32 pb-20 bg-surface-container-low min-h-screen">
+            <div className="pt-32 pb-20 bg-background min-h-screen">
               <div className="max-w-7xl mx-auto px-6">
                 {!user ? <Login /> : <DashboardRouter />}
               </div>
@@ -4481,11 +4539,70 @@ function MainContent() {
   );
 }
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+// --- Error Boundary ---
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false, error: null };
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background p-6">
+          <div className="max-w-md w-full bg-surface p-8 rounded-3xl shadow-xl border border-error/20 text-center">
+            <div className="w-16 h-16 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-headline text-on-surface mb-4">Something went wrong</h2>
+            <p className="text-on-surface-variant mb-8">
+              We encountered an unexpected error. Please try refreshing the page.
+            </p>
+            <div className="bg-surface-container-low p-4 rounded-xl text-left mb-8 overflow-auto max-h-40">
+              <code className="text-xs text-error">{this.state.error?.message}</code>
+            </div>
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold hover:bg-primary-container transition-all"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (this as any).props.children;
+  }
+}
+
 export default function App() {
   return (
-    <AuthProvider>
-      <MainContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <MainContent />
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 const DashboardRouter = () => {
@@ -4525,22 +4642,22 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl border border-gray-100"
+        className="max-w-md w-full space-y-8 bg-surface p-8 rounded-2xl shadow-xl border border-outline-variant"
       >
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-4">
-            <ShieldCheck className="w-8 h-8 text-blue-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-container/20 mb-4">
+            <ShieldCheck className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900">{t('login.title')}</h2>
-          <p className="mt-2 text-gray-600">{t('login.subtitle')}</p>
+          <h2 className="text-3xl font-bold text-on-surface">{t('login.title')}</h2>
+          <p className="mt-2 text-on-surface-variant">{t('login.subtitle')}</p>
         </div>
 
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg flex items-center gap-2 text-sm">
+          <div className="bg-error-container text-on-error-container p-3 rounded-lg flex items-center gap-2 text-sm">
             <AlertCircle className="w-4 h-4" />
             {error}
           </div>
@@ -4755,10 +4872,10 @@ const ChatAgent = () => {
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="absolute bottom-20 right-0 w-[350px] md:w-[400px] h-[500px] bg-white rounded-[32px] shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+            className="absolute bottom-20 right-0 w-[350px] md:w-[400px] h-[500px] bg-surface rounded-[32px] shadow-2xl border border-outline-variant overflow-hidden flex flex-col dark:bg-surface-container"
           >
             {/* Header */}
-            <div className="bg-primary p-4 flex items-center justify-between text-white">
+            <div className="bg-primary p-4 flex items-center justify-between text-on-primary">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                   <Sparkles className="w-6 h-6" />
@@ -4774,7 +4891,7 @@ const ChatAgent = () => {
             </div>
 
             {/* Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-background">
               {messages.map((msg, idx) => (
                 <div key={idx} className={cn(
                   "flex",
@@ -4783,8 +4900,8 @@ const ChatAgent = () => {
                   <div className={cn(
                     "max-w-[80%] p-3 rounded-2xl text-sm shadow-sm",
                     msg.role === 'user' 
-                      ? "bg-primary text-white rounded-tr-none" 
-                      : "bg-white text-slate-700 border border-slate-100 rounded-tl-none"
+                      ? "bg-primary text-on-primary rounded-tr-none" 
+                      : "bg-surface-container-high text-on-surface border border-outline-variant rounded-tl-none"
                   )}>
                     {msg.text}
                   </div>
@@ -4792,7 +4909,7 @@ const ChatAgent = () => {
               ))}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm">
+                  <div className="bg-surface-container-high p-3 rounded-2xl rounded-tl-none border border-outline-variant shadow-sm">
                     <div className="flex gap-1">
                       <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" />
                       <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:0.2s]" />
@@ -4804,7 +4921,7 @@ const ChatAgent = () => {
             </div>
 
             {/* Input */}
-            <div className="p-4 bg-white border-t border-slate-100">
+            <div className="p-4 bg-surface border-t border-outline-variant">
               <div className="relative">
                 <input
                   type="text"
@@ -4812,17 +4929,17 @@ const ChatAgent = () => {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Type your message..."
-                  className="w-full bg-slate-100 border-none rounded-full py-3 pl-4 pr-12 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                  className="w-full bg-surface-container-low border-none rounded-full py-3 pl-4 pr-12 text-sm focus:ring-2 focus:ring-primary/20 outline-none text-on-surface"
                 />
                 <button 
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary text-white rounded-full disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary text-on-primary rounded-full disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
                 >
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-[10px] text-center text-slate-400 mt-2">Powered by Gemini AI</p>
+              <p className="text-[10px] text-center text-on-surface-variant/60 mt-2">Powered by Gemini AI</p>
             </div>
           </motion.div>
         )}
@@ -4889,32 +5006,26 @@ const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, on
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative bg-white rounded-[32px] p-8 w-full max-w-md shadow-2xl"
+            className="relative bg-surface rounded-[32px] p-8 w-full max-w-md shadow-2xl border border-outline-variant dark:bg-surface-container"
           >
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-headline">App Settings</h2>
-              <button onClick={onClose} className="p-2 hover:bg-surface-container rounded-full transition-colors"><X className="w-6 h-6" /></button>
+              <h2 className="text-2xl font-headline text-on-surface">App Settings</h2>
+              <button onClick={onClose} className="p-2 hover:bg-surface-container rounded-full transition-colors text-on-surface"><X className="w-6 h-6" /></button>
             </div>
 
             <div className="space-y-8">
               <div>
-                <label className="block text-sm font-bold mb-4">Clinic Logo</label>
+                <label className="block text-sm font-bold mb-4 text-on-surface">Clinic Logo</label>
                 <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 bg-surface-container rounded-2xl flex items-center justify-center overflow-hidden border-2 border-dashed border-surface-variant">
-                    {logo ? (
-                      <img src={logo} alt="Current Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="text-primary"><Sparkles className="w-10 h-10" /></div>
-                    )}
-                  </div>
+                  <Logo logo={logo} className="w-20 h-20" />
                   <div className="flex flex-col gap-2">
-                    <label className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-primary-container transition-colors flex items-center gap-2">
+                    <label className="bg-primary text-on-primary px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-primary-container transition-colors flex items-center gap-2">
                       <Upload className="w-4 h-4" />
                       Upload New
                       <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
                     </label>
                     {logo && (
-                      <button onClick={() => setLogo(null)} className="text-red-500 text-sm font-bold flex items-center gap-2 hover:text-red-600 transition-colors">
+                      <button onClick={() => setLogo(null)} className="text-error text-sm font-bold flex items-center gap-2 hover:text-error/80 transition-colors">
                         <Trash2 className="w-4 h-4" />
                         Remove Logo
                       </button>
@@ -4925,7 +5036,7 @@ const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, on
 
               {profile && (
                 <div>
-                  <label className="block text-sm font-bold mb-4 flex items-center gap-2">
+                  <label className="block text-sm font-bold mb-4 flex items-center gap-2 text-on-surface">
                     <ShieldCheck className="w-4 h-4 text-primary" />
                     Debug: Switch Role
                   </label>
@@ -4936,7 +5047,7 @@ const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, on
                         onClick={() => handleRoleChange(r)}
                         className={cn(
                           "py-2 rounded-xl text-xs font-bold border transition-all",
-                          profile.role === r ? "bg-primary text-white border-primary" : "bg-white border-surface-variant hover:border-primary"
+                          profile.role === r ? "bg-primary text-on-primary border-primary" : "bg-surface border-outline-variant hover:border-primary text-on-surface"
                         )}
                       >
                         {r.toUpperCase()}
@@ -4950,8 +5061,8 @@ const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, on
               )}
             </div>
 
-            <div className="mt-12 pt-6 border-t border-surface-variant">
-              <button onClick={onClose} className="w-full bg-surface-container text-on-surface py-4 rounded-2xl font-bold hover:bg-surface-container-high transition-colors">
+            <div className="mt-12 pt-6 border-t border-outline-variant">
+              <button onClick={onClose} className="w-full bg-surface-container-high text-on-surface py-4 rounded-2xl font-bold hover:bg-surface-container-highest transition-colors">
                 Close
               </button>
             </div>

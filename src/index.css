@@ -54,6 +54,34 @@
 }
 
 @layer base {
+  .dark {
+    --color-background: #000000;
+    --color-surface: #121212;
+    --color-on-surface: #eef0ff;
+    --color-on-background: #eef0ff;
+    --color-surface-container: #1e1e1e;
+    --color-surface-container-low: #1a1a1a;
+    --color-surface-container-high: #2a2a2a;
+    --color-surface-container-highest: #333333;
+    --color-surface-container-lowest: #0a0a0a;
+    --color-outline: #8e919f;
+    --color-outline-variant: #44474f;
+    --color-surface-variant: #44474f;
+    --color-on-surface-variant: #c4c6d0;
+    --color-primary: #adc6ff;
+    --color-on-primary: #002e69;
+    --color-primary-container: #004494;
+    --color-on-primary-container: #d8e2ff;
+    --color-secondary: #b6c4ff;
+    --color-on-secondary: #00297c;
+    --color-secondary-container: #264191;
+    --color-on-secondary-container: #dce1ff;
+  }
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+@layer base {
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&family=Noto+Sans+Arabic:wght@400;700&family=Noto+Sans+Thai:wght@400;700&display=swap');
 
   body {
@@ -69,6 +97,10 @@
   .glass-nav {
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(20px);
+  }
+
+  .dark .glass-nav {
+    background: rgba(18, 18, 18, 0.8);
   }
 
   .editorial-shadow {

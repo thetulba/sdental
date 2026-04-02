@@ -1,190 +1,89 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
     // ===============================================================
     // Assumed Data Model
     // ===============================================================
-    //
     // Collection: users
-    // Fields: uid (string), email (string), role (string: patient, staff, dentist), name (string), phone (string)
+    // - role: string (admin, receptionist, accountant, doctor)
+    // - email: string
     //
-    // Collection: appointments
-    // Fields: patientId (string), dentistId (string), startTime (timestamp), endTime (timestamp), type (string), status (string)
-    //
-    // Collection: clinical_records
-    // Fields: patientId (string), dentistId (string), date (timestamp), notes (string), scans (list of strings)
-    //
-    // Collection: billing
-    // Fields: appointmentId (string), patientId (string), amount (number), status (string)
-    //
-    // Collection: experts
-    // Fields: name (string), role (string), bio (string), photoURL (string), order (number)
-    //
-    // Collection: invoices
-    // Fields: patientId (string), patientName (string), date (timestamp), items (list of objects), totalAmount (number), status (string)
+    // Collection: patients
+    // - firstName, lastName, phone, etc.
     //
     // Collection: payments
-    // Fields: patientId (string), invoiceId (string), amount (number), date (timestamp), method (string), notes (string)
+    // - amount, type, patientId, etc.
     //
-    // Collection: hr_profiles
-    // Fields: uid (string), baseSalary (number), joiningDate (string), contractType (string), documents (list of objects: { name, url, type })
-    //
+    // Collection: invoices
+    // - total, patientId, etc.
     // ===============================================================
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
-    
     function isAuthenticated() {
       return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
     }
 
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
     function isAdmin() {
-      return isAuthenticated() && 
-        (getUserData().role == 'admin' || 
-         getUserData().role == 'owner' ||
-         (request.auth.token.email == "the.tulba@gmail.com" && request.auth.token.email_verified == true));
+      return hasRole('admin') || (request.auth.token.email == "the.tulba@gmail.com" && request.auth.token.email_verified == true);
     }
 
-    function isOwnerRole() {
-      return isAuthenticated() && (getUserData().role == 'owner' || (request.auth.token.email == "the.tulba@gmail.com" && request.auth.token.email_verified == true));
+    function isAccountant() {
+      return hasRole('accountant') || isAdmin();
     }
 
-    function isStaff() {
-      return isAuthenticated() && (getUserData().role == 'staff' || isAdmin());
+    function isReceptionist() {
+      return hasRole('receptionist') || isAdmin();
     }
 
-    function isDentist() {
-      return isAuthenticated() && (getUserData().role == 'dentist' || isAdmin());
-    }
-
-    function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'role', 'name']) &&
-             data.uid is string &&
-             data.email is string &&
-             data.role in ['patient', 'staff', 'dentist', 'admin', 'owner'] &&
-             data.name is string && data.name.size() < 100;
-    }
-
-    function isValidHRProfile(data) {
-      return data.keys().hasAll(['uid', 'baseSalary', 'joiningDate', 'contractType']) &&
-             data.uid is string &&
-             data.baseSalary is number &&
-             data.joiningDate is timestamp &&
-             data.contractType in ['full-time', 'part-time', 'contract'] &&
-             (!('documents' in data) || data.documents is list);
-    }
-
-    function isValidAppointment(data) {
-      return data.keys().hasAll(['patientId', 'startTime', 'endTime', 'type', 'status']) &&
-             data.patientId is string &&
-             data.startTime is timestamp &&
-             data.endTime is timestamp &&
-             data.type in ['checkup', 'surgery', 'emergency'] &&
-             data.status in ['booked', 'checked-in', 'completed', 'cancelled'];
-    }
-
-    function isValidClinicalRecord(data) {
-      return data.keys().hasAll(['patientId', 'dentistId', 'date']) &&
-             data.patientId is string &&
-             data.dentistId is string &&
-             data.date is timestamp;
-    }
-
-    function isValidBilling(data) {
-      return data.keys().hasAll(['appointmentId', 'patientId', 'amount', 'status']) &&
-             data.appointmentId is string &&
-             data.patientId is string &&
-             data.amount is number &&
-             data.status in ['pending', 'paid'];
-    }
-
-    function isValidExpert(data) {
-      return data.keys().hasAll(['name', 'role', 'bio']) &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.role is string && data.role.size() > 0 && data.role.size() < 100 &&
-             data.bio is string && data.bio.size() > 0 && data.bio.size() < 1000 &&
-             (!('photoURL' in data) || data.photoURL is string) &&
-             (!('order' in data) || data.order is number);
-    }
-
-    function isValidInvoice(data) {
-      return data.keys().hasAll(['patientId', 'date', 'totalAmount', 'status']) &&
-             data.patientId is string &&
-             data.date is timestamp &&
-             data.totalAmount is number &&
-             data.status in ['unpaid', 'partially-paid', 'paid'] &&
-             (!('items' in data) || data.items is list);
-    }
-
-    function isValidPayment(data) {
-      return data.keys().hasAll(['patientId', 'amount', 'date', 'method']) &&
-             data.patientId is string &&
-             data.amount is number &&
-             data.date is timestamp &&
-             data.method in ['cash', 'card', 'bank-transfer'];
+    function isDoctor() {
+      return hasRole('doctor') || isAdmin();
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
 
-    match /users/{uid} {
-      allow read: if isAuthenticated() && (isOwner(uid) || isStaff() || isDentist());
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) || isAdmin());
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(uid) || isAdmin());
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
-    match /hr_profiles/{uid} {
-      allow read, write: if isOwnerRole();
-    }
-
-    match /appointments/{id} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isStaff() || isDentist());
-      allow create: if isAuthenticated() && isValidAppointment(request.resource.data) && (request.auth.uid == request.resource.data.patientId || isStaff());
-      allow update: if isAuthenticated() && isValidAppointment(request.resource.data) && (request.auth.uid == resource.data.patientId || isStaff() || isDentist());
-    }
-
-    match /clinical_records/{id} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isDentist());
-      allow create: if isAuthenticated() && isValidClinicalRecord(request.resource.data) && isDentist();
-      allow update: if isAuthenticated() && isValidClinicalRecord(request.resource.data) && isDentist();
-    }
-
-    match /billing/{id} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isStaff());
-      allow create: if isAuthenticated() && isValidBilling(request.resource.data) && isStaff();
-      allow update: if isAuthenticated() && isValidBilling(request.resource.data) && isStaff();
-    }
-
-    match /experts/{id} {
-      allow read: if true;
-      allow create: if isStaff() && isValidExpert(request.resource.data);
-      allow update: if isStaff() && isValidExpert(request.resource.data);
-      allow delete: if isStaff();
-    }
-
-    match /invoices/{id} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isStaff());
-      allow create: if isStaff() && isValidInvoice(request.resource.data);
-      allow update: if isStaff() && isValidInvoice(request.resource.data);
+    match /patients/{patientId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isReceptionist() || isDoctor();
       allow delete: if isAdmin();
     }
 
-    match /payments/{id} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.patientId || isStaff());
-      allow create: if isStaff() && isValidPayment(request.resource.data);
-      allow update: if isStaff() && isValidPayment(request.resource.data);
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAccountant();
       allow delete: if isAdmin();
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAccountant();
+      allow delete: if isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isReceptionist() || isDoctor();
+      allow delete: if isAdmin();
+    }
+
+    match /backups/{backupId} {
+      allow read, write: if isAdmin();
     }
   }
 }

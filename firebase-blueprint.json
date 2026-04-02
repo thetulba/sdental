@@ -1,116 +1,171 @@
 {
   "entities": {
-    "User": {
-      "title": "User",
-      "description": "A user of the dental clinic system.",
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "System user with role-based access control.",
       "type": "object",
       "properties": {
-        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["patient", "staff", "dentist"] },
-        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "receptionist", "accountant", "doctor"] },
+        "branch": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient demographic and clinical metadata.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "patientId": { "type": "string", "description": "Custom or internal ID" },
+        "internalId": { "type": "string" },
         "phone": { "type": "string" },
-        "orthoPlan": { "type": "object", "description": "Orthodontic treatment plan data" }
+        "secondaryPhone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "insuranceCompany": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "maritalStatus": { "type": "string" },
+        "memberNumber": { "type": "string" },
+        "groupNumber": { "type": "string" },
+        "crtNumber": { "type": "string" },
+        "isInsured": { "type": "boolean" },
+        "insuranceLimit": { "type": "number" },
+        "approvalRequired": { "type": "boolean" },
+        "insurancePercentage": { "type": "number" },
+        "insuranceExpiry": { "type": "string", "format": "date" },
+        "nationality": { "type": "string" },
+        "country": { "type": "string" },
+        "address": { "type": "string" },
+        "dob": { "type": "string", "format": "date" },
+        "details": { "type": "string" },
+        "emergencyContact": { "type": "string" },
+        "referral": { "type": "string" },
+        "doctor": { "type": "string" },
+        "branch": { "type": "string" },
+        "priceListGroup": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "pending", "disabled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "totalPayments": { "type": "number" },
+        "remainingBalance": { "type": "number" },
+        "balance": { "type": "number" }
       },
-      "required": ["uid", "email", "role", "name"]
-    },
-    "Appointment": {
-      "title": "Appointment",
-      "description": "A scheduled dental appointment.",
-      "type": "object",
-      "properties": {
-        "patientId": { "type": "string" },
-        "dentistId": { "type": "string" },
-        "startTime": { "type": "string", "format": "date-time" },
-        "endTime": { "type": "string", "format": "date-time" },
-        "type": { "type": "string", "enum": ["checkup", "surgery", "emergency"] },
-        "status": { "type": "string", "enum": ["booked", "checked-in", "completed", "cancelled"] }
-      },
-      "required": ["patientId", "startTime", "endTime", "type", "status"]
-    },
-    "ClinicalRecord": {
-      "title": "Clinical Record",
-      "description": "A medical record for a patient.",
-      "type": "object",
-      "properties": {
-        "patientId": { "type": "string" },
-        "dentistId": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "notes": { "type": "string" },
-        "scans": { "type": "array", "items": { "type": "string" }, "description": "URLs to 3D/DICOM files" }
-      },
-      "required": ["patientId", "dentistId", "date"]
-    },
-    "Billing": {
-      "title": "Billing",
-      "description": "A billing record for an appointment.",
-      "type": "object",
-      "properties": {
-        "appointmentId": { "type": "string" },
-        "patientId": { "type": "string" },
-        "amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "paid"] }
-      },
-      "required": ["appointmentId", "patientId", "amount", "status"]
-    },
-    "Expert": {
-      "title": "Expert",
-      "description": "A staff member or dentist listed as an expert in the clinic.",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "role": { "type": "string" },
-        "bio": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "order": { "type": "number" }
-      },
-      "required": ["name", "role", "bio"]
-    },
-    "Invoice": {
-      "title": "Invoice",
-      "description": "A detailed invoice for dental services.",
-      "type": "object",
-      "properties": {
-        "patientId": { "type": "string" },
-        "patientName": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "items": { 
-          "type": "array", 
-          "items": { 
-            "type": "object",
-            "properties": {
-              "description": { "type": "string" },
-              "amount": { "type": "number" }
-            }
-          }
-        },
-        "totalAmount": { "type": "number" },
-        "status": { "type": "string", "enum": ["unpaid", "partially-paid", "paid"] }
-      },
-      "required": ["patientId", "date", "totalAmount", "status"]
+      "required": ["firstName", "lastName", "phone"]
     },
     "Payment": {
       "title": "Payment",
-      "description": "A payment record from a patient.",
+      "description": "Financial transaction record.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["cash", "card", "bank_transfer", "mobile_wallet"] },
+        "balance": { "type": "number" },
+        "isClaimed": { "type": "boolean" },
+        "isSigned": { "type": "boolean" },
+        "isRefunded": { "type": "boolean" },
+        "details": { "type": "string" },
+        "insuranceCompany": { "type": "string" },
+        "invoiceId": { "type": "string" },
+        "branch": { "type": "string" },
+        "doctor": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "refundDate": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "amount", "type"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Billing document for procedures.",
       "type": "object",
       "properties": {
         "patientId": { "type": "string" },
         "invoiceId": { "type": "string" },
-        "amount": { "type": "number" },
+        "procedures": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "tax": { "type": "number" },
+        "taxPercent": { "type": "number" },
+        "discount": { "type": "number" },
+        "discountPercent": { "type": "number" },
+        "diagnosticFees": { "type": "number" },
+        "subtotal": { "type": "number" },
+        "insuranceShare": { "type": "number" },
+        "patientShare": { "type": "number" },
+        "requiredToPay": { "type": "number" },
+        "paid": { "type": "number" },
+        "isPaidInFull": { "type": "boolean" },
+        "isSigned": { "type": "boolean" },
+        "isReleased": { "type": "boolean" },
+        "releasedAt": { "type": "string", "format": "date-time" },
+        "branch": { "type": "string" },
+        "doctor": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "total"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Scheduled clinical visit.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
-        "method": { "type": "string", "enum": ["cash", "card", "bank-transfer"] },
+        "status": { "type": "string", "enum": ["scheduled", "completed", "canceled", "no_show"] },
+        "room": { "type": "string" },
+        "doctor": { "type": "string" },
+        "branch": { "type": "string" },
         "notes": { "type": "string" }
       },
-      "required": ["patientId", "amount", "date", "method"]
+      "required": ["patientId", "date", "status"]
+    },
+    "BackupRecord": {
+      "title": "Backup Record",
+      "description": "Log of data backups.",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "size": { "type": "number" },
+        "status": { "type": "string" },
+        "type": { "type": "string", "enum": ["manual", "scheduled"] },
+        "fileUrl": { "type": "string" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["timestamp", "status"]
     }
   },
   "firestore": {
-    "/users/{uid}": { "schema": "User", "description": "User profiles" },
-    "/appointments/{id}": { "schema": "Appointment", "description": "Scheduled appointments" },
-    "/clinical_records/{id}": { "schema": "ClinicalRecord", "description": "Patient medical history" },
-    "/billing/{id}": { "schema": "Billing", "description": "Financial records" },
-    "/experts/{id}": { "schema": "Expert", "description": "Expert profiles for the public website" },
-    "/invoices/{id}": { "schema": "Invoice", "description": "Patient invoices" },
-    "/payments/{id}": { "schema": "Payment", "description": "Patient payment history" }
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile data."
+    },
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patient records."
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payment transactions."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Procedural invoices."
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Patient appointments."
+    },
+    "/backups/{backupId}": {
+      "schema": "BackupRecord",
+      "description": "System backup logs."
+    }
   }
 }
