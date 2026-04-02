@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Review {
   author_name: string;
@@ -11,6 +12,7 @@ interface Review {
 export const GoogleReviews = ({ placeId }: { placeId: string }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -34,7 +36,7 @@ export const GoogleReviews = ({ placeId }: { placeId: string }) => {
 
   return (
     <div className="space-y-6">
-      <h3 className="text-2xl font-headline">What our patients say</h3>
+      <h3 className="text-2xl font-headline">{t('testimonials.title')}</h3>
       <div className="grid md:grid-cols-3 gap-6">
         {reviews.slice(0, 3).map((review, i) => (
           <div key={i} className="bg-surface p-6 rounded-2xl border border-surface-variant shadow-sm">

@@ -147,12 +147,12 @@ const resources = {
         ],
       },
       testimonials: {
-        title: 'Patient Stories',
+        title: 'What our patients say',
         subtitle: 'Hear from those who have experienced the S Dental Center difference.',
         items: [
-          { name: 'James Wilson', text: 'The most professional dental experience I\'ve ever had. The technology they use is mind-blowing.', role: 'Business Executive' },
-          { name: 'Sophia Martinez', text: 'I finally have the smile I\'ve always dreamed of. Dr. Sarah is truly an artist.', role: 'Fashion Designer' },
-          { name: 'David Thompson', text: 'Painless, efficient, and a beautiful clinic. Highly recommend for anyone with dental anxiety.', role: 'Software Engineer' }
+          { name: 'nur shakirah', text: 'The clinic is beautiful, clean and very comfortable. The atmosphere feels calm and relaxing. The dentist and staff is kind and friendly and most importantly, the treatment is completely painless. The appointments are well-organized, so there’s no long waiting time. Highly recommended for those who want to do any teeth treatment.', role: '6 months ago' },
+          { name: 'mizzu', text: 'I was very happy, comfortable, safe, and trustworthy. The doctor was also very professional, with straight teeth, achieving your best smile❤️❤️', role: '5 months ago' },
+          { name: 'Izzatul Sholihah', text: 'Excellent. The doctor is very kind and the treatment is very gentle. Extremely satisfied. The place is also very comfortable. The waiting time was short because the appointment was scheduled in advance. I recommend this clinic if anyone want to do any teeth treatment.', role: '9 months ago' }
         ],
       },
       cta: {
@@ -287,12 +287,12 @@ const resources = {
         ],
       },
       testimonials: {
-        title: 'قصص المرضى',
+        title: 'ماذا يقول مرضانا',
         subtitle: 'استمع إلى أولئك الذين اختبروا فرق مركز S للأسنان.',
         items: [
-          { name: 'جيمس ويلسون', text: 'أكثر تجربة احترافية لطب الأسنان مررت بها على الإطلاق. التكنولوجيا التي يستخدمونها مذهلة.', role: 'تنفيذي أعمال' },
-          { name: 'صوفيا مارتينيز', text: 'أخيراً حصلت على الابتسامة التي كنت أحلم بها دائماً. د. سارة فنانة حقاً.', role: 'مصممة أزياء' },
-          { name: 'ديفيد تومسون', text: 'بدون ألم، فعال، وعيادة جميلة. أوصي به بشدة لأي شخص يعاني من قلق الأسنان.', role: 'مهندس برمجيات' }
+          { name: 'nur shakirah', text: 'The clinic is beautiful, clean and very comfortable. The atmosphere feels calm and relaxing. The dentist and staff is kind and friendly and most importantly, the treatment is completely painless. The appointments are well-organized, so there’s no long waiting time. Highly recommended for those who want to do any teeth treatment.', role: '6 months ago' },
+          { name: 'mizzu', text: 'I was very happy, comfortable, safe, and trustworthy. The doctor was also very professional, with straight teeth, achieving your best smile❤️❤️', role: '5 months ago' },
+          { name: 'Izzatul Sholihah', text: 'Excellent. The doctor is very kind and the treatment is very gentle. Extremely satisfied. The place is also very comfortable. The waiting time was short because the appointment was scheduled in advance. I recommend this clinic if anyone want to do any teeth treatment.', role: '9 months ago' }
         ],
       },
       cta: {
@@ -427,12 +427,12 @@ const resources = {
         ],
       },
       testimonials: {
-        title: 'Cerita Pesakit',
+        title: 'Apa kata pesakit kami',
         subtitle: 'Dengar daripada mereka yang telah merasai perbezaan Pusat Pergigian S.',
         items: [
-          { name: 'James Wilson', text: 'Pengalaman pergigian paling profesional yang pernah saya lalui. Teknologi yang mereka gunakan sangat menakjubkan.', role: 'Eksekutif Perniagaan' },
-          { name: 'Sophia Martinez', text: 'Saya akhirnya mempunyai senyuman yang saya impikan selama ini. Dr. Sarah benar-benar seorang artis.', role: 'Pereka Fesyen' },
-          { name: 'David Thompson', text: 'Tanpa sakit, cekap, dan klinik yang cantik. Sangat mengesyorkan untuk sesiapa yang mempunyai kebimbangan pergigian.', role: 'Jurutera Perisian' }
+          { name: 'nur shakirah', text: 'The clinic is beautiful, clean and very comfortable. The atmosphere feels calm and relaxing. The dentist and staff is kind and friendly and most importantly, the treatment is completely painless. The appointments are well-organized, so there’s no long waiting time. Highly recommended for those who want to do any teeth treatment.', role: '6 months ago' },
+          { name: 'mizzu', text: 'I was very happy, comfortable, safe, and trustworthy. The doctor was also very professional, with straight teeth, achieving your best smile❤️❤️', role: '5 months ago' },
+          { name: 'Izzatul Sholihah', text: 'Excellent. The doctor is very kind and the treatment is very gentle. Extremely satisfied. The place is also very comfortable. The waiting time was short because the appointment was scheduled in advance. I recommend this clinic if anyone want to do any teeth treatment.', role: '9 months ago' }
         ],
       },
       cta: {
@@ -567,12 +567,12 @@ const resources = {
         ],
       },
       testimonials: {
-        title: 'Cerita Pasien',
+        title: 'Apa kata pasien kami',
         subtitle: 'Dengarkan dari mereka yang telah merasakan perbedaan Pusat Gigi S.',
         items: [
-          { name: 'James Wilson', text: 'Pengalaman gigi paling profesional yang pernah saya alami. Teknologi yang mereka gunakan sangat luar biasa.', role: 'Eksekutif Bisnis' },
-          { name: 'Sophia Martinez', text: 'Saya akhirnya memiliki senyum yang selalu saya impikan. Dr. Sarah benar-benar seorang seniman.', role: 'Desainer Fashion' },
-          { name: 'David Thompson', text: 'Tanpa rasa sakit, efisien, dan klinik yang indah. Sangat merekomendasikan bagi siapa pun yang memiliki kecemasan terhadap dokter gigi.', role: 'Insinyur Perangkat Lunak' }
+          { name: 'nur shakirah', text: 'The clinic is beautiful, clean and very comfortable. The atmosphere feels calm and relaxing. The dentist and staff is kind and friendly and most importantly, the treatment is completely painless. The appointments are well-organized, so there’s no long waiting time. Highly recommended for those who want to do any teeth treatment.', role: '6 months ago' },
+          { name: 'mizzu', text: 'I was very happy, comfortable, safe, and trustworthy. The doctor was also very professional, with straight teeth, achieving your best smile❤️❤️', role: '5 months ago' },
+          { name: 'Izzatul Sholihah', text: 'Excellent. The doctor is very kind and the treatment is very gentle. Extremely satisfied. The place is also very comfortable. The waiting time was short because the appointment was scheduled in advance. I recommend this clinic if anyone want to do any teeth treatment.', role: '9 months ago' }
         ],
       },
       cta: {
@@ -707,12 +707,12 @@ const resources = {
         ],
       },
       testimonials: {
-        title: 'เรื่องราวของคนไข้',
+        title: 'สิ่งที่คนไข้ของเราพูด',
         subtitle: 'ฟังเสียงจากผู้ที่สัมผัสความแตกต่างของ S Dental Center',
         items: [
-          { name: 'เจมส์ วิลสัน', text: 'ประสบการณ์ทันตกรรมที่เป็นมืออาชีพที่สุดที่ฉันเคยได้รับ เทคโนโลยีที่พวกเขาใช้นั้นน่าทึ่งมาก', role: 'ผู้บริหารธุรกิจ' },
-          { name: 'โซเฟีย มาร์ติเนซ', text: 'ในที่สุดฉันก็มีรอยยิ้มที่ฝันไว้ คุณหมอซาร่าห์เป็นศิลปินตัวจริง', role: 'แฟชั่นดีไซเนอร์' },
-          { name: 'เดวิด ทอมป์สัน', text: 'ไม่เจ็บปวด มีประสิทธิภาพ และคลินิกสวยงามมาก ขอแนะนำอย่างยิ่งสำหรับทุกคนที่กังวลเรื่องการทำฟัน', role: 'วิศวกรซอฟต์แวร์' }
+          { name: 'nur shakirah', text: 'The clinic is beautiful, clean and very comfortable. The atmosphere feels calm and relaxing. The dentist and staff is kind and friendly and most importantly, the treatment is completely painless. The appointments are well-organized, so there’s no long waiting time. Highly recommended for those who want to do any teeth treatment.', role: '6 months ago' },
+          { name: 'mizzu', text: 'I was very happy, comfortable, safe, and trustworthy. The doctor was also very professional, with straight teeth, achieving your best smile❤️❤️', role: '5 months ago' },
+          { name: 'Izzatul Sholihah', text: 'Excellent. The doctor is very kind and the treatment is very gentle. Extremely satisfied. The place is also very comfortable. The waiting time was short because the appointment was scheduled in advance. I recommend this clinic if anyone want to do any teeth treatment.', role: '9 months ago' }
         ],
       },
       cta: {

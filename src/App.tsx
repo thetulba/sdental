@@ -4973,7 +4973,7 @@ function MainContent() {
               <Services />
               <section className="py-16 bg-surface">
                 <div className="max-w-7xl mx-auto px-6">
-                  <GoogleReviews placeId="ChIJN1t_tDeuEmsRUsoyG83frY4" />
+                  <GoogleReviews placeId="ChIJ5WJDbFw9WBQR3cPDdl6aL-U" />
                 </div>
               </section>
               
@@ -5031,9 +5031,6 @@ function MainContent() {
                         </div>
                         <p className="text-lg italic text-on-surface mb-8">"{t_item.text}"</p>
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-surface-variant overflow-hidden">
-                            <img src={`https://i.pravatar.cc/100?u=${t_item.name}`} alt={t_item.name} referrerPolicy="no-referrer" />
-                          </div>
                           <div>
                             <div className="font-bold">{t_item.name}</div>
                             <div className="text-xs text-on-surface-variant uppercase tracking-wider">{t_item.role}</div>
