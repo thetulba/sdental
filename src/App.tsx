@@ -106,7 +106,7 @@ import { ThemeProvider, useTheme } from './lib/ThemeContext';
 
 // --- Types ---
 type Role = 'patient' | 'staff' | 'dentist' | 'admin' | 'owner';
-type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard';
+type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'staff-portal' | 'contact';
 
 interface UserProfile {
   uid: string;
@@ -215,6 +215,69 @@ export const useAuth = () => {
 };
 
 // --- Auth Provider ---
+// --- Staff Auth Context ---
+interface StaffSession {
+  token: string;
+  staff: {
+    id: string;
+    username: string;
+    name: string;
+    photo: string;
+  };
+}
+
+interface StaffAuthContextType {
+  staffSession: StaffSession | null;
+  staffLogin: (username: string, pass: string) => Promise<void>;
+  staffLogout: () => void;
+  isStaffLoggingIn: boolean;
+}
+
+const StaffAuthContext = createContext<StaffAuthContextType | undefined>(undefined);
+
+export const StaffAuthProvider = ({ children }: { children: ReactNode }) => {
+  const [staffSession, setStaffSession] = useState<StaffSession | null>(() => {
+    const saved = localStorage.getItem('staff-session');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isStaffLoggingIn, setIsStaffLoggingIn] = useState(false);
+
+  const staffLogin = async (username: string, pass: string) => {
+    setIsStaffLoggingIn(true);
+    try {
+      const res = await fetch('/api/staff/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password: pass })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      
+      setStaffSession(data);
+      localStorage.setItem('staff-session', JSON.stringify(data));
+    } finally {
+      setIsStaffLoggingIn(false);
+    }
+  };
+
+  const staffLogout = () => {
+    setStaffSession(null);
+    localStorage.removeItem('staff-session');
+  };
+
+  return (
+    <StaffAuthContext.Provider value={{ staffSession, staffLogin, staffLogout, isStaffLoggingIn }}>
+      {children}
+    </StaffAuthContext.Provider>
+  );
+};
+
+export const useStaffAuth = () => {
+  const context = useContext(StaffAuthContext);
+  if (!context) throw new Error('useStaffAuth must be used within a StaffAuthProvider');
+  return context;
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -393,6 +456,8 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
     { label: t('nav.home'), id: 'home' },
     { label: t('nav.experts'), id: 'experts' },
     { label: t('nav.portfolio'), id: 'portfolio' },
+    { label: 'Contact', id: 'contact' },
+    { label: 'Staff Portal', id: 'staff-portal' },
   ];
 
   const languages = [
@@ -2857,7 +2922,7 @@ const StaffDashboard = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [experts, setExperts] = useState<Expert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'appointments' | 'experts' | 'team' | 'import'>('appointments');
+  const [tab, setTab] = useState<'appointments' | 'experts' | 'team' | 'import' | 'staff'>('appointments');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedOrthoId, setSelectedOrthoId] = useState<string | null>(null);
 
@@ -2988,6 +3053,12 @@ const StaffDashboard = () => {
             >
               Data Import
             </button>
+            <button 
+              onClick={() => setTab('staff')}
+              className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'staff' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
+            >
+              Staff Management
+            </button>
           </>
         )}
       </div>
@@ -3100,6 +3171,7 @@ const StaffDashboard = () => {
       {tab === 'experts' && <ExpertManagement experts={experts} />}
       {tab === 'team' && <TeamManagement />}
       {tab === 'import' && <DataImport />}
+      {tab === 'staff' && <StaffManagement />}
     </div>
   );
 };
@@ -4019,6 +4091,106 @@ const Services = () => {
   );
 };
 
+const ContactSection = () => {
+  const { t } = useTranslation();
+  return (
+    <section className="py-32 bg-surface">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid md:grid-cols-2 gap-20 items-start">
+          <div className="space-y-12">
+            <div>
+              <h2 className="font-headline text-4xl md:text-5xl mb-6">S Dental Center</h2>
+              <p className="text-on-surface-variant text-lg max-w-md">
+                Experience world-class dental care in the heart of Nasr City. Our team is dedicated to your oral health and beautiful smile.
+              </p>
+            </div>
+
+            <div className="space-y-8">
+              <div className="flex items-start gap-6 group">
+                <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                  <MapPin className="w-7 h-7" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xl mb-2">Our Address</h4>
+                  <p className="text-on-surface-variant leading-relaxed">
+                    11 Ahmed El-Zomor St., 10th District,<br />
+                    Nasr City, Cairo, Egypt
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-6 group">
+                <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                  <Phone className="w-7 h-7" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xl mb-2">Phone & WhatsApp</h4>
+                  <p className="text-on-surface-variant mb-2">+20 120 121 2190</p>
+                  <a 
+                    href="https://wa.me/201201212190" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-primary font-bold hover:underline"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Chat on WhatsApp
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-6 group">
+                <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                  <Clock className="w-7 h-7" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xl mb-2">Opening Hours</h4>
+                  <div className="space-y-1 text-on-surface-variant">
+                    <p className="flex justify-between gap-8">
+                      <span>Saturday – Thursday</span>
+                      <span className="font-bold">4:00 PM – 10:00 PM</span>
+                    </p>
+                    <p className="flex justify-between gap-8 text-error font-medium">
+                      <span>Friday</span>
+                      <span>Closed</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            <div className="bg-surface-container-low p-2 rounded-[40px] border border-surface-variant shadow-xl overflow-hidden">
+              <div className="rounded-[32px] overflow-hidden h-[450px] relative">
+                <iframe 
+                  width="100%" 
+                  height="100%" 
+                  style={{ border: 0 }} 
+                  loading="lazy" 
+                  allowFullScreen 
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src="https://maps.google.com/maps?q=11%20Ahmed%20El-Zomor%20St.,%2010th%20District,%20Nasr%20City,%20Cairo&t=&z=17&ie=UTF8&iwloc=&output=embed"
+                  title="S Dental Center Location"
+                ></iframe>
+              </div>
+            </div>
+            
+            <div className="bg-primary/5 p-8 rounded-[32px] border border-primary/10">
+              <h4 className="font-bold mb-4 flex items-center gap-2 text-primary">
+                <Sparkles className="w-5 h-5" />
+                Patient Entrance
+              </h4>
+              <p className="text-sm text-on-surface-variant leading-relaxed">
+                The clinic is located on the main street of Ahmed El-Zomor. Look for the S Dental Center sign above the main entrance of the building. Parking is available along the side streets.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const ExpertsScreen = () => {
   const { t } = useTranslation();
   const [experts, setExperts] = useState<Expert[]>([]);
@@ -4338,7 +4510,7 @@ const BookingScreen = () => {
   );
 };
 
-const Footer = ({ logo }: { logo: string | null }) => {
+const Footer = ({ logo, setScreen }: { logo: string | null, setScreen: (s: Screen) => void }) => {
   const { t } = useTranslation();
   return (
     <footer className="bg-inverse-surface text-white py-20">
@@ -4363,9 +4535,10 @@ const Footer = ({ logo }: { logo: string | null }) => {
           <div>
             <h4 className="font-bold mb-6">{t('footer.links')}</h4>
             <ul className="space-y-4 text-white/60">
-              <li><button onClick={() => window.scrollTo(0, 0)} className="hover:text-white transition-colors">{t('nav.home')}</button></li>
-              <li><button onClick={() => {/* navigate to experts */}} className="hover:text-white transition-colors">{t('nav.experts')}</button></li>
-              <li><button onClick={() => {/* navigate to portfolio */}} className="hover:text-white transition-colors">{t('nav.portfolio')}</button></li>
+              <li><button onClick={() => { setScreen('home'); window.scrollTo(0, 0); }} className="hover:text-white transition-colors">{t('nav.home')}</button></li>
+              <li><button onClick={() => setScreen('experts')} className="hover:text-white transition-colors">{t('nav.experts')}</button></li>
+              <li><button onClick={() => setScreen('portfolio')} className="hover:text-white transition-colors">{t('nav.portfolio')}</button></li>
+              <li><button onClick={() => setScreen('contact')} className="hover:text-white transition-colors">Contact Us</button></li>
             </ul>
           </div>
           <div>
@@ -4504,12 +4677,28 @@ function MainContent() {
                   </button>
                 </div>
               </section>
+
+              <ContactSection />
             </motion.div>
           )}
 
           {screen === 'experts' && <ExpertsScreen />}
           {screen === 'portfolio' && <PortfolioScreen />}
           {screen === 'booking' && <BookingScreen />}
+          
+          {screen === 'contact' && (
+            <div className="pt-32 pb-20 bg-background min-h-screen">
+              <ContactSection />
+            </div>
+          )}
+          
+          {screen === 'staff-portal' && (
+            <div className="pt-32 pb-20 bg-background min-h-screen">
+              <div className="max-w-7xl mx-auto px-6">
+                <StaffPortal />
+              </div>
+            </div>
+          )}
           
           {screen === 'dashboard' && (
             <div className="pt-32 pb-20 bg-background min-h-screen">
@@ -4521,7 +4710,7 @@ function MainContent() {
         </AnimatePresence>
       </main>
 
-      <Footer logo={logo} />
+      <Footer logo={logo} setScreen={setScreen} />
 
       {/* Settings Modal */}
       <SettingsModal 
@@ -4599,7 +4788,9 @@ export default function App() {
     <ErrorBoundary>
       <ThemeProvider>
         <AuthProvider>
-          <MainContent />
+          <StaffAuthProvider>
+            <MainContent />
+          </StaffAuthProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
@@ -4619,6 +4810,517 @@ const DashboardRouter = () => {
     case 'admin': return <DentistDashboard />;
     default: return <PatientDashboard />;
   }
+};
+
+// --- Staff Portal Components ---
+
+const StaffPortal = () => {
+  const { staffSession } = useStaffAuth();
+  
+  if (!staffSession) return <StaffLoginForm />;
+  return <StaffAttendancePortal />;
+};
+
+const StaffLoginForm = () => {
+  const { staffLogin, isStaffLoggingIn } = useStaffAuth();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await staffLogin(username, password);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-surface p-8 rounded-3xl shadow-xl border border-outline-variant"
+      >
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-headline text-on-surface">Staff Portal</h2>
+          <p className="text-on-surface-variant text-sm mt-2">Please log in with your staff credentials</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Username</label>
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant w-5 h-5" />
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                placeholder="Enter username"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Password</label>
+            <div className="relative">
+              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant w-5 h-5" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                placeholder="Enter password"
+                required
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-4 bg-error/10 border border-error/20 rounded-2xl flex items-center gap-3 text-error text-sm">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isStaffLoggingIn}
+            className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold hover:bg-primary-container transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isStaffLoggingIn ? (
+              <Sparkles className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                Login to Portal
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+const StaffAttendancePortal = () => {
+  const { staffSession, staffLogout } = useStaffAuth();
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ status: string, distance: number } | null>(null);
+  const [error, setError] = useState('');
+
+  const handleClockIn = async () => {
+    setLoading(true);
+    setError('');
+    setResult(null);
+
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by your browser.");
+      setLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const res = await fetch('/api/attendance/clock-in', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${staffSession?.token}`
+            },
+            body: JSON.stringify({
+              staffId: staffSession?.staff.id,
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Clock-in failed');
+          setResult(data);
+        } catch (err: any) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      },
+      (err) => {
+        setError("Unable to retrieve your location. Please ensure location services are enabled.");
+        setLoading(false);
+      }
+    );
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-surface p-8 rounded-[40px] shadow-2xl border border-outline-variant overflow-hidden relative"
+      >
+        <div className="absolute top-0 right-0 p-6">
+          <button 
+            onClick={staffLogout}
+            className="p-2 text-on-surface-variant hover:text-error transition-colors"
+            title="Logout"
+          >
+            <LogOut className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center text-center">
+          <div className="relative mb-6">
+            <div className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-primary/20 shadow-lg">
+              <img 
+                src={staffSession?.staff.photo || `https://ui-avatars.com/api/?name=${staffSession?.staff.name}`} 
+                alt={staffSession?.staff.name}
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center border-4 border-surface shadow-md">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+
+          <h2 className="text-3xl font-headline text-on-surface mb-2">Welcome, {staffSession?.staff.name}</h2>
+          <p className="text-on-surface-variant mb-8">Staff ID: {staffSession?.staff.id}</p>
+
+          <div className="w-full max-w-sm space-y-6">
+            <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Office Location</p>
+                    <p className="text-sm font-semibold text-on-surface">Main Dental Center</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Radius</p>
+                  <p className="text-sm font-semibold text-on-surface">200m</p>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleClockIn}
+                disabled={loading}
+                className={cn(
+                  "w-full py-6 rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3",
+                  loading ? "bg-surface-variant text-on-surface-variant" : "bg-primary text-on-primary hover:bg-primary-container"
+                )}
+              >
+                {loading ? (
+                  <Sparkles className="w-6 h-6 animate-spin" />
+                ) : (
+                  <>
+                    <Clock className="w-6 h-6" />
+                    CLOCK IN
+                  </>
+                )}
+              </button>
+            </div>
+
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-error/10 border border-error/20 rounded-2xl flex items-center gap-3 text-error text-sm text-left"
+              >
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                {error}
+              </motion.div>
+            )}
+
+            {result && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={cn(
+                  "p-6 rounded-3xl border text-left",
+                  result.status === 'On-site' 
+                    ? "bg-green-500/10 border-green-500/20 text-green-600" 
+                    : "bg-amber-500/10 border-amber-500/20 text-amber-600"
+                )}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center",
+                    result.status === 'On-site' ? "bg-green-500 text-white" : "bg-amber-500 text-white"
+                  )}>
+                    {result.status === 'On-site' ? <CheckCircle2 className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">Attendance Recorded: {result.status}</p>
+                    <p className="text-sm opacity-80">Distance from office: {result.distance}m</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const StaffManagement = () => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'create' | 'logs'>('create');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const fetchLogs = async () => {
+    try {
+      const res = await fetch(`/api/attendance/logs?adminUid=${user?.uid}`);
+      const data = await res.json();
+      if (res.ok) setLogs(data);
+    } catch (err) {
+      console.error("Error fetching logs:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'logs') fetchLogs();
+  }, [activeTab]);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhoto(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setPhotoPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('password', password);
+    formData.append('name', name);
+    formData.append('adminUid', user?.uid || '');
+    if (photo) formData.append('photo', photo);
+
+    try {
+      const res = await fetch('/api/staff/create', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create staff');
+      
+      setMessage({ type: 'success', text: 'Staff account created successfully!' });
+      setUsername('');
+      setPassword('');
+      setName('');
+      setPhoto(null);
+      setPhotoPreview(null);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-headline text-on-surface">Staff Management</h2>
+        <div className="flex bg-surface-container-low p-1 rounded-2xl border border-outline-variant">
+          <button
+            onClick={() => setActiveTab('create')}
+            className={cn(
+              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              activeTab === 'create' ? "bg-primary text-on-primary shadow-md" : "text-on-surface-variant hover:text-on-surface"
+            )}
+          >
+            Create Staff
+          </button>
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={cn(
+              "px-6 py-2 rounded-xl text-sm font-bold transition-all",
+              activeTab === 'logs' ? "bg-primary text-on-primary shadow-md" : "text-on-surface-variant hover:text-on-surface"
+            )}
+          >
+            Attendance Logs
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'create' ? (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-surface p-8 rounded-3xl border border-outline-variant max-w-2xl"
+        >
+          <form onSubmit={handleCreateStaff} className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                    placeholder="Staff Full Name"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Username</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                    placeholder="Login Username"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                    placeholder="Login Password"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center justify-center border-2 border-dashed border-outline-variant rounded-3xl p-6 bg-surface-container-lowest">
+                {photoPreview ? (
+                  <div className="relative group">
+                    <img src={photoPreview} alt="Preview" className="w-32 h-32 rounded-2xl object-cover shadow-lg" />
+                    <button 
+                      type="button"
+                      onClick={() => { setPhoto(null); setPhotoPreview(null); }}
+                      className="absolute -top-2 -right-2 bg-error text-white p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
+                      <Upload className="w-8 h-8" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-on-surface">Upload Photo</p>
+                      <p className="text-xs text-on-surface-variant">JPG, PNG up to 5MB</p>
+                    </div>
+                    <input type="file" className="hidden" accept="image/*" onChange={handlePhotoChange} />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {message && (
+              <div className={cn(
+                "p-4 rounded-2xl flex items-center gap-3 text-sm",
+                message.type === 'success' ? "bg-green-500/10 border border-green-500/20 text-green-600" : "bg-error/10 border border-error/20 text-error"
+              )}>
+                {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                {message.text}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold hover:bg-primary-container transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {loading ? <Sparkles className="w-5 h-5 animate-spin" /> : "Create Staff Account"}
+            </button>
+          </form>
+        </motion.div>
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-surface rounded-3xl border border-outline-variant overflow-hidden"
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-surface-container-low border-b border-outline-variant">
+                  <th className="px-6 py-4 text-xs font-black text-on-surface-variant uppercase tracking-wider">Staff</th>
+                  <th className="px-6 py-4 text-xs font-black text-on-surface-variant uppercase tracking-wider">Time</th>
+                  <th className="px-6 py-4 text-xs font-black text-on-surface-variant uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-4 text-xs font-black text-on-surface-variant uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant">
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-surface-container-lowest transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={log.staffPhoto || `https://ui-avatars.com/api/?name=${log.staffName}`} 
+                          alt={log.staffName}
+                          className="w-10 h-10 rounded-xl object-cover border border-outline-variant"
+                          referrerPolicy="no-referrer"
+                        />
+                        <span className="font-bold text-on-surface">{log.staffName}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-medium text-on-surface">{format(new Date(log.timestamp), 'MMM d, h:mm a')}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-on-surface-variant">
+                        <MapPin className="w-4 h-4" />
+                        <span className="text-xs font-medium">{log.coordinates.lat.toFixed(4)}, {log.coordinates.lng.toFixed(4)} ({log.distance}m)</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
+                        log.status === 'On-site' ? "bg-green-500/10 text-green-600" : "bg-amber-500/10 text-amber-600"
+                      )}>
+                        {log.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {logs.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-on-surface-variant">
+                      No attendance logs found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
 };
 
 // --- Auth Components ---

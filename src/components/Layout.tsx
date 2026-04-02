@@ -12,7 +12,8 @@ import {
   Bell,
   Menu,
   X,
-  Stethoscope
+  Stethoscope,
+  Briefcase
 } from 'lucide-react';
 import { useAuth } from '../App';
 import { cn } from '../lib/utils';
@@ -26,12 +27,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   const { profile, signOut } = useAuth();
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'receptionist', 'accountant', 'doctor'] },
-    { id: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'receptionist', 'doctor'] },
-    { id: 'payments', label: 'Payments', icon: CreditCard, roles: ['admin', 'accountant'] },
-    { id: 'invoices', label: 'Invoices', icon: FileText, roles: ['admin', 'accountant'] },
-    { id: 'backup', label: 'Backup Center', icon: Database, roles: ['admin'] },
-    { id: 'settings', label: 'Settings', icon: Settings, roles: ['admin'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'receptionist', 'accountant', 'doctor', 'owner'] },
+    { id: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'receptionist', 'doctor', 'owner'] },
+    { id: 'staff', label: 'Staff Management', icon: Briefcase, roles: ['owner'] },
+    { id: 'payments', label: 'Payments', icon: CreditCard, roles: ['admin', 'accountant', 'owner'] },
+    { id: 'invoices', label: 'Invoices', icon: FileText, roles: ['admin', 'accountant', 'owner'] },
+    { id: 'backup', label: 'Backup Center', icon: Database, roles: ['admin', 'owner'] },
+    { id: 'settings', label: 'Settings', icon: Settings, roles: ['admin', 'owner'] },
   ];
 
   const filteredMenu = menuItems.filter(item => item.roles.includes(profile?.role || ''));

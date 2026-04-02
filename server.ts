@@ -4,6 +4,9 @@ import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
 import { fileURLToPath } from "url";
 import twilio from "twilio";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import multer from "multer";
 
 console.log("Server module loading...");
 
@@ -36,10 +39,171 @@ async function startServer() {
   const db = admin.firestore();
   const auth = admin.auth();
 
-  console.log("Express middleware setup...");
-  app.use(express.json());
+  const JWT_SECRET = process.env.JWT_SECRET || "dental-staff-secret-key-2026";
+  const OFFICE_LAT = 51.5074;
+  const OFFICE_LNG = -0.1278;
+  const RADIUS_METERS = 200;
 
-  // API Routes
+  // Multer setup for profile photos
+  const storage = multer.memoryStorage();
+  const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB limit
+
+  console.log("Express middleware setup...");
+  app.use(express.json({ limit: '10mb' }));
+
+  // Helper: Calculate distance between two points in meters
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  };
+
+  // Staff Management Routes
+  app.post("/api/staff/create", upload.single('photo'), async (req: any, res) => {
+    const { username, password, name, adminUid } = req.body;
+    const photo = req.file;
+
+    try {
+      // Verify requester is owner
+      const requesterDoc = await db.collection("users").doc(adminUid).get();
+      const isOwner = requesterDoc.data()?.role === "owner" || requesterDoc.data()?.email === "the.tulba@gmail.com";
+      
+      if (!isOwner) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      // Check if username exists
+      const existing = await db.collection("staff").where("username", "==", username).get();
+      if (!existing.empty) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      let photoBase64 = "";
+      if (photo) {
+        photoBase64 = `data:${photo.mimetype};base64,${photo.buffer.toString('base64')}`;
+      }
+
+      const staffRef = db.collection("staff").doc();
+      await staffRef.set({
+        id: staffRef.id,
+        username,
+        password: hashedPassword,
+        name,
+        photo: photoBase64,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      res.json({ success: true, id: staffRef.id });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/staff/login", async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+      const snapshot = await db.collection("staff").where("username", "==", username).get();
+      if (snapshot.empty) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const staff = snapshot.docs[0].data();
+      const isValid = await bcrypt.compare(password, staff.password);
+
+      if (!isValid) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const token = jwt.sign({ id: staff.id, username: staff.username, name: staff.name, role: 'staff' }, JWT_SECRET, { expiresIn: '24h' });
+      
+      res.json({ 
+        token, 
+        staff: { 
+          id: staff.id, 
+          username: staff.username, 
+          name: staff.name, 
+          photo: staff.photo 
+        } 
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/attendance/clock-in", async (req, res) => {
+    const { staffId, lat, lng } = req.body;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      if (decoded.id !== staffId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const distance = getDistance(lat, lng, OFFICE_LAT, OFFICE_LNG);
+      const status = distance <= RADIUS_METERS ? 'On-site' : 'Off-site';
+
+      const attendanceRef = db.collection("attendance").doc();
+      await attendanceRef.set({
+        id: attendanceRef.id,
+        staffId,
+        staffName: decoded.name,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        coordinates: { lat, lng },
+        distance: Math.round(distance),
+        status,
+      });
+
+      res.json({ success: true, status, distance: Math.round(distance) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/attendance/logs", async (req, res) => {
+    const { adminUid } = req.query;
+
+    try {
+      if (adminUid) {
+        const requesterDoc = await db.collection("users").doc(adminUid as string).get();
+        const isOwner = requesterDoc.data()?.role === "owner" || requesterDoc.data()?.email === "the.tulba@gmail.com";
+        if (!isOwner) return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      const snapshot = await db.collection("attendance").orderBy("timestamp", "desc").limit(100).get();
+      const logs = await Promise.all(snapshot.docs.map(async (doc) => {
+        const data = doc.data();
+        const staffDoc = await db.collection("staff").doc(data.staffId).get();
+        const staffData = staffDoc.data();
+        return {
+          ...data,
+          staffPhoto: staffData?.photo || "",
+          timestamp: data.timestamp.toDate(),
+        };
+      }));
+
+      res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Existing API Routes
   app.post("/api/admin/create-user", async (req, res) => {
     const { email, password, name, role, adminUid } = req.body;
 
