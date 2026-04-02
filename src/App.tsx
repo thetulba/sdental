@@ -4326,9 +4326,9 @@ const ContactSection = () => {
         <div className="grid md:grid-cols-2 gap-20 items-start">
           <div className="space-y-12">
             <div>
-              <h2 className="font-headline text-4xl md:text-5xl mb-6">S Dental Center | S Pusat Pergigian</h2>
+              <h2 className="font-headline text-4xl md:text-5xl mb-6">Dental Center</h2>
               <p className="text-on-surface-variant text-lg max-w-md">
-                Experience world-class dental care in the heart of Kuala Lumpur. Our team is dedicated to your oral health and beautiful smile.
+                Experience world-class dental care. Our team is dedicated to your oral health and beautiful smile.
               </p>
             </div>
 
@@ -4340,8 +4340,8 @@ const ContactSection = () => {
                 <div>
                   <h4 className="font-bold text-xl mb-2">Our Address</h4>
                   <p className="text-on-surface-variant leading-relaxed">
-                    No. 11-1, Jalan Dwitasik 1, Dataran Dwitasik,<br />
-                    Bandar Sri Permaisuri, 56000 Kuala Lumpur, Malaysia
+                    28 Ahmed El-Zomor St., 10th District,<br />
+                    Nasr City, Cairo
                   </p>
                 </div>
               </div>
@@ -4352,9 +4352,9 @@ const ContactSection = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-xl mb-2">Phone & WhatsApp</h4>
-                  <p className="text-on-surface-variant mb-2">+60 3-9174 7474</p>
+                  <p className="text-on-surface-variant mb-2">+20 120 121 2190</p>
                   <a 
-                    href="https://wa.me/60391747474" 
+                    href="https://wa.me/201201212190" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-primary font-bold hover:underline"
@@ -4373,8 +4373,12 @@ const ContactSection = () => {
                   <h4 className="font-bold text-xl mb-2">Opening Hours</h4>
                   <div className="space-y-1 text-on-surface-variant">
                     <p className="flex justify-between gap-8">
-                      <span>Monday – Sunday</span>
-                      <span className="font-bold">9:00 AM – 9:00 PM</span>
+                      <span>Saturday – Thursday</span>
+                      <span className="font-bold">4:00 PM – 10:00 PM</span>
+                    </p>
+                    <p className="flex justify-between gap-8">
+                      <span>Friday</span>
+                      <span className="font-bold">Closed</span>
                     </p>
                   </div>
                 </div>
@@ -4393,7 +4397,7 @@ const ContactSection = () => {
                   allowFullScreen 
                   referrerPolicy="no-referrer-when-downgrade"
                   src="https://maps.google.com/maps?cid=16514588089101042653&output=embed"
-                  title="S Dental Center | S Pusat Pergigian Location"
+                  title="Dental Center Location"
                 ></iframe>
               </div>
             </div>
