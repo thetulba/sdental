@@ -14,7 +14,7 @@ const resources = {
       },
       hero: {
         badge: 'Redefining Aesthetic Dentistry',
-        title: 'The Art of a Perfect Smile',
+        title: 'World-Class Orthodontic Excellence',
         subtitle: 'Experience clinical excellence combined with luxury care. Our world-class experts use cutting-edge technology to craft your most confident smile.',
         cta: 'Start Your Journey',
         stats: '5,000+ Happy Patients',
@@ -179,7 +179,7 @@ const resources = {
       },
       hero: {
         badge: 'إعادة تعريف طب الأسنان التجميلي',
-        title: 'فن الابتسامة المثالية',
+        title: 'تميز عالمي في تقويم الأسنان',
         subtitle: 'اختبر التميز السريري الممزوج بالرعاية الفاخرة. يستخدم خبراؤنا العالميون أحدث التقنيات لصياغة ابتسامتك الأكثر ثقة.',
         cta: 'ابدأ رحلتك',
         stats: 'أكثر من 5000 مريض سعيد',
@@ -319,7 +319,7 @@ const resources = {
       },
       hero: {
         badge: 'Mentakrif Semula Pergigian Estetik',
-        title: 'Seni Senyuman Sempurna',
+        title: 'Kecemerlangan Ortodontik Bertaraf Dunia',
         subtitle: 'Alami kecemerlangan klinikal digabungkan dengan penjagaan mewah. Pakar bertaraf dunia kami menggunakan teknologi terkini untuk menghasilkan senyuman paling yakin anda.',
         cta: 'Mulakan Perjalanan Anda',
         stats: '5,000+ Pesakit Gembira',
@@ -459,7 +459,7 @@ const resources = {
       },
       hero: {
         badge: 'Mendefinisikan Ulang Kedokteran Gigi Estetik',
-        title: 'Seni Senyum Sempurna',
+        title: 'Keunggulan Ortodonti Kelas Dunia',
         subtitle: 'Rasakan keunggulan klinis yang dikombinasikan dengan perawatan mewah. Pakar kelas dunia kami menggunakan teknologi mutakhir untuk menciptakan senyum paling percaya diri Anda.',
         cta: 'Mulai Perjalanan Anda',
         stats: '5.000+ Pasien Bahagia',
@@ -599,7 +599,7 @@ const resources = {
       },
       hero: {
         badge: 'นิยามใหม่ของทันตกรรมเพื่อความงาม',
-        title: 'ศิลปะแห่งรอยยิ้มที่สมบูรณ์แบบ',
+        title: 'ความเป็นเลิศด้านการจัดฟันระดับโลก',
         subtitle: 'สัมผัสความเป็นเลิศทางคลินิกควบคู่ไปกับการดูแลระดับหรูหรา ผู้เชี่ยวชาญระดับโลกของเราใช้เทคโนโลยีล้ำสมัยเพื่อสร้างสรรค์รอยยิ้มที่มั่นใจที่สุดของคุณ',
         cta: 'เริ่มต้นการเดินทางของคุณ',
         stats: 'คนไข้ที่มีความสุขกว่า 5,000 คน',

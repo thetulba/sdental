@@ -34,7 +34,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return hasRole('admin') || (request.auth.token.email == "the.tulba@gmail.com" && request.auth.token.email_verified == true);
+      return hasRole('admin') || hasRole('owner') || (request.auth.token.email == "the.tulba@gmail.com" && request.auth.token.email_verified == true);
     }
 
     function isAccountant() {
@@ -55,6 +55,11 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated();
+      allow write: if isDoctor() || isAdmin();
+    }
+
+    match /portfolio/{caseId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 

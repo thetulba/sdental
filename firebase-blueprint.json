@@ -8,11 +8,25 @@
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "receptionist", "accountant", "doctor"] },
+        "role": { "type": "string", "enum": ["admin", "receptionist", "accountant", "doctor", "owner"] },
         "branch": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "xrays": { "type": "array", "items": { "type": "object" } },
+        "gallery": { "type": "array", "items": { "type": "object" } }
       },
       "required": ["uid", "email", "role"]
+    },
+    "PortfolioCase": {
+      "title": "Portfolio Case",
+      "description": "A clinical case for the public portfolio.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "desc": { "type": "string" },
+        "image": { "type": "string", "description": "Base64 or URL" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "image"]
     },
     "Patient": {
       "title": "Patient",
@@ -166,6 +180,10 @@
     "/backups/{backupId}": {
       "schema": "BackupRecord",
       "description": "System backup logs."
+    },
+    "/portfolio/{caseId}": {
+      "schema": "PortfolioCase",
+      "description": "Public portfolio cases."
     }
   }
 }

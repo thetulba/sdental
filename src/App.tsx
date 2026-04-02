@@ -142,6 +142,8 @@ interface UserProfile {
   lastUpdatedBy?: string;
   branch?: string;
   requiresPasswordChange?: boolean;
+  xrays?: { id: string, title: string, date: string, type: string, url: string }[];
+  gallery?: { id: string, url: string, date: string, title?: string }[];
 }
 
 interface HRProfile {
@@ -1780,6 +1782,93 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
     { id: 'INV-2026-002', date: 'Mar 25, 2026', amount: 3500.00, status: 'Pending', items: ['Wisdom Tooth Extraction'] },
   ]);
 
+  const [xrays, setXrays] = useState<{ id: string, title: string, date: string, type: string, url: string }[]>([]);
+  const [gallery, setGallery] = useState<{ id: string, url: string, date: string, title?: string }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleXrayUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !patient) return;
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        const newXray = {
+          id: Math.random().toString(36).substr(2, 9),
+          title: file.name.split('.')[0],
+          date: format(new Date(), 'MMM d, yyyy'),
+          type: 'SCAN',
+          url: base64
+        };
+        
+        const updatedXrays = [...(patient.xrays || []), newXray];
+        await updateDoc(doc(db, 'users', patientId), { xrays: updatedXrays });
+        setXrays(updatedXrays);
+        setPatient(prev => prev ? { ...prev, xrays: updatedXrays } : null);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${patientId}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteXray = async (id: string) => {
+    if (!patient) return;
+    try {
+      const updatedXrays = (patient.xrays || []).filter(x => x.id !== id);
+      await updateDoc(doc(db, 'users', patientId), { xrays: updatedXrays });
+      setXrays(updatedXrays);
+      setPatient(prev => prev ? { ...prev, xrays: updatedXrays } : null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${patientId}`);
+    }
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !patient) return;
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        const newPhoto = {
+          id: Math.random().toString(36).substr(2, 9),
+          url: base64,
+          date: format(new Date(), 'MMM d, yyyy'),
+          title: file.name.split('.')[0]
+        };
+        
+        const updatedGallery = [...(patient.gallery || []), newPhoto];
+        await updateDoc(doc(db, 'users', patientId), { gallery: updatedGallery });
+        setGallery(updatedGallery);
+        setPatient(prev => prev ? { ...prev, gallery: updatedGallery } : null);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${patientId}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteGallery = async (id: string) => {
+    if (!patient) return;
+    try {
+      const updatedGallery = (patient.gallery || []).filter(g => g.id !== id);
+      await updateDoc(doc(db, 'users', patientId), { gallery: updatedGallery });
+      setGallery(updatedGallery);
+      setPatient(prev => prev ? { ...prev, gallery: updatedGallery } : null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${patientId}`);
+    }
+  };
+
   const toggleTooth = (toothId: string) => {
     setSelectedTeeth(prev => 
       prev.includes(toothId) ? prev.filter(id => id !== toothId) : [...prev, toothId]
@@ -1862,7 +1951,10 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
         const docRef = doc(db, 'users', patientId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setPatient({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+          const data = docSnap.data() as UserProfile;
+          setPatient({ uid: docSnap.id, ...data } as UserProfile);
+          setXrays(data.xrays || []);
+          setGallery(data.gallery || []);
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, `users/${patientId}`);
@@ -2663,31 +2755,54 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
             <div className="animate-in fade-in duration-500">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="font-headline text-2xl">X-Rays & Imaging</h3>
-                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
-                  <Upload className="w-4 h-4" /> Upload Scan
-                </button>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleXrayUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    disabled={isUploading}
+                  />
+                  <button className={cn(
+                    "bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2",
+                    isUploading && "opacity-50 cursor-not-allowed"
+                  )}>
+                    <Upload className="w-4 h-4" /> {isUploading ? 'Uploading...' : 'Upload Scan'}
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {[
-                  { title: 'Panoramic X-Ray', date: 'Mar 15, 2026', type: 'OPG' },
-                  { title: 'Cephalometric', date: 'Mar 15, 2026', type: 'CEPH' },
-                  { title: 'Bitewing Left', date: 'Jan 10, 2026', type: 'BW' },
-                  { title: 'Bitewing Right', date: 'Jan 10, 2026', type: 'BW' },
-                ].map((scan, i) => (
-                  <div key={i} className="group relative bg-slate-100 rounded-2xl aspect-square overflow-hidden border border-slate-200 cursor-pointer">
+                {xrays.length > 0 ? xrays.map((scan, i) => (
+                  <div key={scan.id} className="group relative bg-slate-100 rounded-2xl aspect-square overflow-hidden border border-slate-200 cursor-pointer">
                     <img 
-                      src={`https://picsum.photos/seed/xray${i}/400/400?grayscale`} 
+                      src={scan.url} 
                       alt={scan.title} 
                       className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                       referrerPolicy="no-referrer"
                     />
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteXray(scan.id);
+                        }}
+                        className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                     <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-white">
                       <p className="text-xs font-black uppercase tracking-widest opacity-70">{scan.type}</p>
                       <p className="font-bold text-sm">{scan.title}</p>
                       <p className="text-[10px] opacity-70">{scan.date}</p>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="col-span-full py-20 text-center bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200">
+                    <Box className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 font-medium">No X-rays uploaded yet</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2698,22 +2813,53 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
                 <h3 className="font-headline text-2xl">Clinical Gallery</h3>
                 <div className="flex gap-2">
                   <button className="bg-surface-container px-4 py-2 rounded-xl text-sm font-bold">Before/After</button>
-                  <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
-                    <Plus className="w-4 h-4" /> Add Photos
-                  </button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleGalleryUpload}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      disabled={isUploading}
+                    />
+                    <button className={cn(
+                      "bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2",
+                      isUploading && "opacity-50 cursor-not-allowed"
+                    )}>
+                      <Plus className="w-4 h-4" /> {isUploading ? 'Adding...' : 'Add Photos'}
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="rounded-2xl aspect-square overflow-hidden border border-slate-200 shadow-sm">
+                {gallery.length > 0 ? gallery.map((photo, i) => (
+                  <div key={photo.id} className="group relative rounded-2xl aspect-square overflow-hidden border border-slate-200 shadow-sm">
                     <img 
-                      src={`https://picsum.photos/seed/dental${i}/400/400`} 
-                      alt={`Clinical ${i}`} 
+                      src={photo.url} 
+                      alt={photo.title || `Clinical ${i}`} 
                       className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
                       referrerPolicy="no-referrer"
                     />
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleDeleteGallery(photo.id)}
+                        className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {photo.title && (
+                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/60 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[10px] font-bold">{photo.title}</p>
+                        <p className="text-[8px] opacity-70">{photo.date}</p>
+                      </div>
+                    )}
                   </div>
-                ))}
+                )) : (
+                  <div className="col-span-full py-20 text-center bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-200">
+                    <Share2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500 font-medium">No clinical photos added yet</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -3949,7 +4095,7 @@ const Hero = ({ onBook }: { onBook: () => void }) => {
             <Sparkles className="w-4 h-4" />
             {t('hero.badge')}
           </div>
-          <h1 className="font-headline text-5xl md:text-7xl leading-[1.1] text-on-surface mb-6">
+          <h1 className="font-headline text-5xl md:text-7xl leading-[1.1] mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-tight">
             {t('hero.title')}
           </h1>
           <p className="text-lg text-on-surface-variant mb-10 max-w-lg leading-relaxed">
@@ -4108,9 +4254,9 @@ const ContactSection = () => {
         <div className="grid md:grid-cols-2 gap-20 items-start">
           <div className="space-y-12">
             <div>
-              <h2 className="font-headline text-4xl md:text-5xl mb-6">S Dental Center</h2>
+              <h2 className="font-headline text-4xl md:text-5xl mb-6">S Dental Center | S Pusat Pergigian</h2>
               <p className="text-on-surface-variant text-lg max-w-md">
-                Experience world-class dental care in the heart of Nasr City. Our team is dedicated to your oral health and beautiful smile.
+                Experience world-class dental care in the heart of Kuala Lumpur. Our team is dedicated to your oral health and beautiful smile.
               </p>
             </div>
 
@@ -4122,8 +4268,8 @@ const ContactSection = () => {
                 <div>
                   <h4 className="font-bold text-xl mb-2">Our Address</h4>
                   <p className="text-on-surface-variant leading-relaxed">
-                    11 Ahmed El-Zomor St., 10th District,<br />
-                    Nasr City, Cairo, Egypt
+                    No. 11-1, Jalan Dwitasik 1, Dataran Dwitasik,<br />
+                    Bandar Sri Permaisuri, 56000 Kuala Lumpur, Malaysia
                   </p>
                 </div>
               </div>
@@ -4134,9 +4280,9 @@ const ContactSection = () => {
                 </div>
                 <div>
                   <h4 className="font-bold text-xl mb-2">Phone & WhatsApp</h4>
-                  <p className="text-on-surface-variant mb-2">+20 120 121 2190</p>
+                  <p className="text-on-surface-variant mb-2">+60 3-9174 7474</p>
                   <a 
-                    href="https://wa.me/201201212190" 
+                    href="https://wa.me/60391747474" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-primary font-bold hover:underline"
@@ -4155,12 +4301,8 @@ const ContactSection = () => {
                   <h4 className="font-bold text-xl mb-2">Opening Hours</h4>
                   <div className="space-y-1 text-on-surface-variant">
                     <p className="flex justify-between gap-8">
-                      <span>Saturday – Thursday</span>
-                      <span className="font-bold">4:00 PM – 10:00 PM</span>
-                    </p>
-                    <p className="flex justify-between gap-8 text-error font-medium">
-                      <span>Friday</span>
-                      <span>Closed</span>
+                      <span>Monday – Sunday</span>
+                      <span className="font-bold">9:00 AM – 9:00 PM</span>
                     </p>
                   </div>
                 </div>
@@ -4178,8 +4320,8 @@ const ContactSection = () => {
                   loading="lazy" 
                   allowFullScreen 
                   referrerPolicy="no-referrer-when-downgrade"
-                  src="https://maps.google.com/maps?q=11%20Ahmed%20El-Zomor%20St.,%2010th%20District,%20Nasr%20City,%20Cairo&t=&z=17&ie=UTF8&iwloc=&output=embed"
-                  title="S Dental Center Location"
+                  src="https://maps.google.com/maps?cid=16514588089101042653&output=embed"
+                  title="S Dental Center | S Pusat Pergigian Location"
                 ></iframe>
               </div>
             </div>
@@ -4190,7 +4332,7 @@ const ContactSection = () => {
                 Patient Entrance
               </h4>
               <p className="text-sm text-on-surface-variant leading-relaxed">
-                The clinic is located on the main street of Ahmed El-Zomor. Look for the S Dental Center sign above the main entrance of the building. Parking is available along the side streets.
+                The clinic is located in Dataran Dwitasik, Bandar Sri Permaisuri. Look for the S Dental Center | S Pusat Pergigian sign above the main entrance of the building. Parking is available within the Dataran Dwitasik area.
               </p>
             </div>
           </div>
@@ -4256,35 +4398,177 @@ const ExpertsScreen = () => {
 
 const PortfolioScreen = () => {
   const { t } = useTranslation();
-  const cases = [
-    {
-      title: t('portfolio.cases.makeover.title'),
-      desc: t('portfolio.cases.makeover.desc'),
-      image: "https://images.unsplash.com/photo-1606811971618-4486d14f3f99?q=80&w=2070&auto=format&fit=crop"
-    },
-    {
-      title: t('portfolio.cases.alignment.title'),
-      desc: t('portfolio.cases.alignment.desc'),
-      image: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?q=80&w=2070&auto=format&fit=crop"
-    },
-    {
-      title: t('portfolio.cases.restoration.title'),
-      desc: t('portfolio.cases.restoration.desc'),
-      image: "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?q=80&w=2070&auto=format&fit=crop"
+  const { profile } = useAuth();
+  const [cases, setCases] = useState<{ title: string, desc: string, image: string, id: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newCase, setNewCase] = useState({ title: '', desc: '', image: '' });
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, 'portfolio'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedCases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      if (fetchedCases.length > 0) {
+        setCases(fetchedCases);
+      } else {
+        // Fallback to defaults if empty
+        setCases([
+          {
+            id: 'default1',
+            title: t('portfolio.cases.makeover.title'),
+            desc: t('portfolio.cases.makeover.desc'),
+            image: "https://images.unsplash.com/photo-1606811971618-4486d14f3f99?q=80&w=2070&auto=format&fit=crop"
+          },
+          {
+            id: 'default2',
+            title: t('portfolio.cases.alignment.title'),
+            desc: t('portfolio.cases.alignment.desc'),
+            image: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?q=80&w=2070&auto=format&fit=crop"
+          },
+          {
+            id: 'default3',
+            title: t('portfolio.cases.restoration.title'),
+            desc: t('portfolio.cases.restoration.desc'),
+            image: "https://images.unsplash.com/photo-1598256989800-fe5f95da9787?q=80&w=2070&auto=format&fit=crop"
+          }
+        ]);
+      }
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'portfolio'));
+
+    return unsubscribe;
+  }, [t]);
+
+  const handleAddCase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCase.title || !newCase.image) return;
+    setUploading(true);
+    try {
+      await addDoc(collection(db, 'portfolio'), {
+        ...newCase,
+        createdAt: Timestamp.now()
+      });
+      setNewCase({ title: '', desc: '', image: '' });
+      setIsEditing(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'portfolio');
+    } finally {
+      setUploading(false);
     }
-  ];
+  };
+
+  const handleDeleteCase = async (id: string) => {
+    if (id.startsWith('default')) return;
+    try {
+      await deleteDoc(doc(db, 'portfolio', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `portfolio/${id}`);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewCase(prev => ({ ...prev, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  if (loading) return <div className="pt-40 pb-20 text-center"><Sparkles className="w-10 h-10 animate-spin mx-auto text-primary" /></div>;
 
   return (
     <div className="pt-32 pb-20">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-16 text-center">
+        <div className="mb-16 text-center relative">
           <h1 className="font-headline text-5xl mb-4">{t('portfolio.title')}</h1>
           <p className="text-on-surface-variant text-lg">{t('portfolio.subtitle')}</p>
+          
+          {(profile?.role === 'owner' || profile?.role === 'admin') && (
+            <button 
+              onClick={() => setIsEditing(!isEditing)}
+              className="absolute right-0 top-0 bg-primary/10 text-primary px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/20 transition-colors"
+            >
+              {isEditing ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {isEditing ? 'Cancel' : 'Manage Gallery'}
+            </button>
+          )}
         </div>
+
+        <AnimatePresence>
+          {isEditing && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-12 bg-surface-container-low p-8 rounded-[40px] border border-outline-variant overflow-hidden"
+            >
+              <h2 className="text-2xl font-headline mb-6">Add New Case</h2>
+              <form onSubmit={handleAddCase} className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold mb-1 ml-1">Case Title</label>
+                    <input 
+                      type="text" 
+                      value={newCase.title}
+                      onChange={e => setNewCase(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-2xl bg-surface border border-outline-variant focus:ring-2 focus:ring-primary outline-none"
+                      placeholder="e.g. Smile Makeover"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-1 ml-1">Description</label>
+                    <textarea 
+                      value={newCase.desc}
+                      onChange={e => setNewCase(prev => ({ ...prev, desc: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-2xl bg-surface border border-outline-variant focus:ring-2 focus:ring-primary outline-none h-32"
+                      placeholder="Briefly describe the procedure..."
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <label className="block text-sm font-bold mb-1 ml-1">Case Photo</label>
+                  <div className="relative aspect-video rounded-3xl border-2 border-dashed border-outline-variant bg-surface overflow-hidden flex items-center justify-center group">
+                    {newCase.image ? (
+                      <>
+                        <img src={newCase.image} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button type="button" onClick={() => setNewCase(prev => ({ ...prev, image: '' }))} className="bg-error text-white p-2 rounded-full"><X className="w-5 h-5" /></button>
+                        </div>
+                      </>
+                    ) : (
+                      <label className="cursor-pointer text-center p-6">
+                        <Upload className="w-10 h-10 text-primary mx-auto mb-2" />
+                        <p className="text-sm font-bold">Upload Case Photo</p>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                      </label>
+                    )}
+                  </div>
+                  <button 
+                    type="submit" 
+                    disabled={uploading || !newCase.image || !newCase.title}
+                    className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {uploading ? <Sparkles className="w-5 h-5 animate-spin" /> : <PlusCircle className="w-5 h-5" />}
+                    Add Case to Portfolio
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {cases.map((c, i) => (
             <motion.div 
-              key={i}
+              key={c.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.1 }}
               className="relative rounded-[40px] overflow-hidden group aspect-square shadow-xl"
             >
               <img 
@@ -4296,6 +4580,18 @@ const PortfolioScreen = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-10">
                 <h3 className="text-white font-headline text-2xl mb-2">{c.title}</h3>
                 <p className="text-white/80">{c.desc}</p>
+                
+                {isEditing && !c.id.startsWith('default') && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCase(c.id);
+                    }}
+                    className="absolute top-6 right-6 bg-error text-white p-3 rounded-2xl shadow-lg hover:scale-110 transition-transform"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </motion.div>
           ))}
@@ -5725,6 +6021,28 @@ const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, on
             </div>
 
             <div className="space-y-8">
+              {profile?.role === 'owner' && (
+                <div>
+                  <label className="block text-sm font-bold mb-4 text-on-surface">Clinic Logo</label>
+                  <div className="flex items-center gap-6">
+                    <Logo logo={logo} className="w-20 h-20" />
+                    <div className="flex flex-col gap-2">
+                      <label className="bg-primary text-on-primary px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-primary-container transition-colors flex items-center gap-2">
+                        <Upload className="w-4 h-4" />
+                        Upload New
+                        <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                      </label>
+                      {logo && (
+                        <button onClick={() => setLogo(null)} className="text-error text-sm font-bold flex items-center gap-2 hover:text-error/80 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                          Remove Logo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {profile && (
                 <div>
                   <label className="block text-sm font-bold mb-4 flex items-center gap-2 text-on-surface">
