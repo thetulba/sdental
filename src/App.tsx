@@ -486,7 +486,7 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
             className="cursor-pointer group"
             onClick={() => setScreen('home')}
           >
-            <span className="font-headline text-xl tracking-tight text-on-surface group-hover:text-primary transition-colors">
+            <span className="font-headline text-lg sm:text-xl tracking-tight text-on-surface group-hover:text-primary transition-colors">
               Dental Center
             </span>
           </div>
@@ -613,42 +613,113 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-full left-0 right-0 bg-white border-t border-surface-variant p-6 md:hidden shadow-xl"
+            className="absolute top-full left-0 right-0 bg-surface border-t border-surface-variant p-6 md:hidden shadow-2xl max-h-[80vh] overflow-y-auto"
           >
-            <div className="flex flex-col gap-4">
-              {navLinks.map((link) => (
-                <button
-                  key={link.id}
-                  onClick={() => {
-                    setScreen(link.id);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={cn(
-                    "text-left text-lg font-medium py-2",
-                    activeScreen === link.id ? "text-primary" : "text-on-surface-variant"
-                  )}
-                >
-                  {link.label}
-                </button>
-              ))}
-              {user ? (
-                <button 
-                  onClick={() => {
-                    setScreen('dashboard');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="bg-primary text-white w-full py-4 rounded-2xl text-center font-bold mt-2"
-                >
-                  Go to Dashboard
-                </button>
-              ) : (
-                <button 
-                  onClick={login}
-                  className="bg-primary text-white w-full py-4 rounded-2xl text-center font-bold mt-2"
-                >
-                  Sign In
-                </button>
-              )}
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                {navLinks.map((link) => (
+                  <button
+                    key={link.id}
+                    onClick={() => {
+                      setScreen(link.id);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={cn(
+                      "text-left text-lg font-headline py-3 px-4 rounded-2xl transition-colors",
+                      activeScreen === link.id ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container"
+                    )}
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="h-[1px] bg-surface-variant w-full" />
+
+              <div className="space-y-4">
+                <div className="px-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">Language</p>
+                  <div className="flex flex-wrap gap-2">
+                    {languages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => i18n.changeLanguage(lang.code)}
+                        className={cn(
+                          "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border",
+                          i18n.language === lang.code 
+                            ? "bg-primary text-white border-primary shadow-md" 
+                            : "bg-surface-container-low text-on-surface-variant border-surface-variant"
+                        )}
+                      >
+                        <span>{lang.flag}</span>
+                        {lang.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="px-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">Appearance</p>
+                  <button
+                    onClick={toggleTheme}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-surface-container-low border border-surface-variant rounded-2xl text-on-surface-variant"
+                  >
+                    <div className="flex items-center gap-3">
+                      {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                      <span className="font-bold">{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+                    </div>
+                    <div className={cn(
+                      "w-10 h-6 rounded-full relative transition-colors p-1",
+                      theme === 'dark' ? "bg-primary" : "bg-surface-variant"
+                    )}>
+                      <div className={cn(
+                        "w-4 h-4 bg-white rounded-full transition-transform",
+                        theme === 'dark' ? "translate-x-4" : "translate-x-0"
+                      )} />
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="h-[1px] bg-surface-variant w-full" />
+              
+              <div className="px-4 pb-4">
+                {user ? (
+                  <div className="space-y-3">
+                    <button 
+                      onClick={() => {
+                        setScreen('dashboard');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="bg-primary text-white w-full py-4 rounded-2xl text-center font-bold shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <LayoutDashboard className="w-5 h-5" />
+                      {t('nav.dashboard')}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        signOut();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full py-4 rounded-2xl text-center font-bold text-error bg-error/10 border border-error/20 flex items-center justify-center gap-2"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      login();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="bg-primary text-white w-full py-4 rounded-2xl text-center font-bold shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <Users className="w-5 h-5" />
+                    {t('nav.signIn')}
+                  </button>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
@@ -1989,34 +2060,34 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
-      <div className="bg-white rounded-[32px] p-8 border border-surface-variant shadow-sm">
-        <div className="flex items-start justify-between mb-8">
-          <div className="flex items-center gap-6">
+      <div className="bg-white rounded-[32px] p-6 sm:p-8 border border-surface-variant shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-6 mb-8">
+          <div className="flex items-center gap-4 sm:gap-6">
             <button 
               onClick={onBack}
-              className="p-3 hover:bg-surface-container rounded-2xl transition-colors"
+              className="p-2 sm:p-3 hover:bg-surface-container rounded-2xl transition-colors"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-5 h-5 sm:w-6 h-6" />
             </button>
-            <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center">
-              <User className="w-10 h-10 text-primary" />
+            <div className="w-16 h-16 sm:w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center shrink-0">
+              <User className="w-8 h-8 sm:w-10 h-10 text-primary" />
             </div>
-            <div>
-              <h1 className="text-3xl font-headline mb-1">{patient.name}</h1>
-              <div className="flex items-center gap-4 text-on-surface-variant text-sm font-medium">
-                <span className="bg-surface-container px-3 py-1 rounded-full">ID: #{patient.uid.slice(-4).toUpperCase()}</span>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-headline mb-1 truncate">{patient.name}</h1>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-on-surface-variant text-xs sm:text-sm font-medium">
+                <span className="bg-surface-container px-2 py-0.5 sm:px-3 sm:py-1 rounded-full">ID: #{patient.uid.slice(-4).toUpperCase()}</span>
                 <span>{patient.age || 27}y {patient.gender || 'Female'}</span>
-                <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Last visit: 16 hours ago</span>
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3 sm:w-4 h-4" /> 16h ago</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-3">
-            <button className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2 hover:opacity-90 transition-opacity">
-              <Edit3 className="w-5 h-5" />
-              Edit Patient
+          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+            <button className="flex-grow sm:flex-grow-0 bg-primary text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity text-sm sm:text-base">
+              <Edit3 className="w-4 h-4 sm:w-5 h-5" />
+              Edit
             </button>
-            <button className="p-3 hover:bg-surface-container rounded-2xl transition-colors border border-surface-variant">
-              <MoreVertical className="w-6 h-6" />
+            <button className="p-2.5 sm:p-3 hover:bg-surface-container rounded-2xl transition-colors border border-surface-variant">
+              <MoreVertical className="w-5 h-5 sm:w-6 h-6" />
             </button>
           </div>
         </div>
@@ -3500,7 +3571,7 @@ const ExpertManagement = ({ experts }: { experts: Expert[] }) => {
                   <div className="text-sm text-primary font-bold tracking-tight uppercase">{exp.role}</div>
                   <p className="text-xs text-on-surface-variant line-clamp-1 mt-1">{exp.bio}</p>
                 </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={(e) => { e.stopPropagation(); setEditingId(exp.id); setForm(exp); }}
                     className="p-3 bg-surface-container-low hover:bg-primary/10 text-primary rounded-xl transition-colors"
@@ -3663,7 +3734,7 @@ const CreateStaffModal = ({ onClose }: { onClose: () => void }) => {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-surface-variant"
+        className="bg-white w-full max-w-md rounded-[32px] p-6 sm:p-8 shadow-2xl border border-surface-variant"
       >
         <div className="flex items-center justify-between mb-8">
           <h3 className="text-2xl font-headline">New Team Member</h3>
@@ -4090,6 +4161,7 @@ const Hero = ({ onBook }: { onBook: () => void }) => {
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
+          className="text-center md:text-left flex flex-col items-center md:items-start"
         >
           <div className="inline-flex items-center gap-2 bg-surface-container px-4 py-2 rounded-full text-primary text-sm font-semibold mb-6">
             <Sparkles className="w-4 h-4" />
@@ -4101,7 +4173,7 @@ const Hero = ({ onBook }: { onBook: () => void }) => {
           <p className="text-lg text-on-surface-variant mb-10 max-w-lg leading-relaxed">
             {t('hero.subtitle')}
           </p>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap justify-center md:justify-start gap-4">
             <button 
               onClick={onBook}
               className="bg-primary text-white px-8 py-4 rounded-2xl font-bold shadow-lg hover:bg-primary-container transition-all flex items-center gap-2 group"
@@ -4117,7 +4189,7 @@ const Hero = ({ onBook }: { onBook: () => void }) => {
                   </div>
                 ))}
               </div>
-              <div className="text-sm">
+              <div className="text-sm text-left">
                 <div className="flex text-yellow-500">
                   {[1,2,3,4,5].map(i => <Star key={i} className="w-3 h-3 fill-current" />)}
                 </div>
@@ -5147,7 +5219,7 @@ const StaffLoginForm = () => {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-surface p-8 rounded-3xl shadow-xl border border-outline-variant"
+        className="bg-surface p-6 sm:p-8 rounded-3xl shadow-xl border border-outline-variant"
       >
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -5268,7 +5340,7 @@ const StaffAttendancePortal = () => {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-surface p-8 rounded-[40px] shadow-2xl border border-outline-variant overflow-hidden relative"
+        className="bg-surface p-6 sm:p-8 rounded-[40px] shadow-2xl border border-outline-variant overflow-hidden relative"
       >
         <div className="absolute top-0 right-0 p-6">
           <button 
