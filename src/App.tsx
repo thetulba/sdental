@@ -442,7 +442,7 @@ const Logo = ({ logo, className = "w-10 h-10", onClick, showSettingsIcon = false
 const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScreen: Screen, setScreen: (s: Screen) => void, logo: string | null, onOpenSettings: () => void }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, login, signOut, isLoggingIn } = useAuth();
+  const { user, profile, login, signOut, isLoggingIn } = useAuth();
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useTheme();
 
@@ -477,9 +477,7 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
         <div className="flex items-center gap-4">
           <Logo 
             logo={logo} 
-            onClick={onOpenSettings}
             className="w-11 h-11"
-            showSettingsIcon={true}
           />
           
           <div 
@@ -548,6 +546,17 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
               {theme === 'light' ? 'Dark' : 'Light'}
             </span>
           </button>
+
+          {/* Settings for Owners/Admins */}
+          {(profile?.role === 'owner' || profile?.role === 'admin') && (
+            <button
+              onClick={onOpenSettings}
+              className="p-2 bg-surface-container-low border border-surface-variant rounded-full text-on-surface-variant hover:text-primary hover:border-primary transition-all shadow-sm active:scale-95"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          )}
 
           {user ? (
             <div className="flex items-center gap-4">
@@ -5716,26 +5725,6 @@ const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, on
             </div>
 
             <div className="space-y-8">
-              <div>
-                <label className="block text-sm font-bold mb-4 text-on-surface">Clinic Logo</label>
-                <div className="flex items-center gap-6">
-                  <Logo logo={logo} className="w-20 h-20" />
-                  <div className="flex flex-col gap-2">
-                    <label className="bg-primary text-on-primary px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-primary-container transition-colors flex items-center gap-2">
-                      <Upload className="w-4 h-4" />
-                      Upload New
-                      <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                    </label>
-                    {logo && (
-                      <button onClick={() => setLogo(null)} className="text-error text-sm font-bold flex items-center gap-2 hover:text-error/80 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                        Remove Logo
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
               {profile && (
                 <div>
                   <label className="block text-sm font-bold mb-4 flex items-center gap-2 text-on-surface">
