@@ -1,4 +1,5 @@
 import React, { useState, useEffect, createContext, useContext, ReactNode, Component } from 'react';
+import { SettingsManagement } from './components/SettingsManagement';
 import { 
   Menu, 
   X, 
@@ -6101,22 +6102,25 @@ const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, on
 
             <div className="space-y-8">
               {profile?.role === 'owner' && (
-                <div>
-                  <label className="block text-sm font-bold mb-4 text-on-surface">Clinic Logo</label>
-                  <div className="flex items-center gap-6">
-                    <Logo logo={logo} className="w-20 h-20" />
-                    <div className="flex flex-col gap-2">
-                      <label className="bg-primary text-on-primary px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-primary-container transition-colors flex items-center gap-2">
-                        <Upload className="w-4 h-4" />
-                        Upload New
-                        <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                      </label>
-                      {logo && (
-                        <button onClick={() => setLogo(null)} className="text-error text-sm font-bold flex items-center gap-2 hover:text-error/80 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                          Remove Logo
-                        </button>
-                      )}
+                <div className="space-y-8">
+                  <SettingsManagement />
+                  <div>
+                    <label className="block text-sm font-bold mb-4 text-on-surface">Clinic Logo</label>
+                    <div className="flex items-center gap-6">
+                      <Logo logo={logo} className="w-20 h-20" />
+                      <div className="flex flex-col gap-2">
+                        <label className="bg-primary text-on-primary px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-primary-container transition-colors flex items-center gap-2">
+                          <Upload className="w-4 h-4" />
+                          Upload New
+                          <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                        </label>
+                        {logo && (
+                          <button onClick={() => setLogo(null)} className="text-error text-sm font-bold flex items-center gap-2 hover:text-error/80 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                            Remove Logo
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

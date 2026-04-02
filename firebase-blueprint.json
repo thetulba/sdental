@@ -166,6 +166,17 @@
         "expiresAt": { "type": "string", "format": "date-time" }
       },
       "required": ["code", "discountPercent", "isActive"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Dental service offered.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "price"]
     }
   },
   "firestore": {
@@ -200,6 +211,10 @@
     "/promocodes/{code}": {
       "schema": "PromoCode",
       "description": "Valid promo codes."
+    },
+    "/services/{serviceId}": {
+      "schema": "Service",
+      "description": "Available dental services."
     }
   }
 }

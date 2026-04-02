@@ -53,6 +53,15 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    match /experts/{expertId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && request.resource.data.keys().hasAll(['name', 'role', 'description', 'order']) &&
+                      request.resource.data.name is string && request.resource.data.name.size() < 100 &&
+                      request.resource.data.role is string && request.resource.data.role.size() < 100 &&
+                      request.resource.data.description is string && request.resource.data.description.size() < 1000 &&
+                      request.resource.data.order is number;
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow write: if isDoctor() || isAdmin();
@@ -89,6 +98,16 @@ service cloud.firestore {
 
     match /backups/{backupId} {
       allow read, write: if isAdmin();
+    }
+
+    match /promocodes/{code} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

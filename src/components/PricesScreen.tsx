@@ -1,22 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 
 export const PricesScreen = () => {
+  const [services, setServices] = useState<any[]>([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'services'), (snapshot) => {
+      setServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'services'));
+    return unsub;
+  }, []);
+
   return (
     <div className="py-20 px-6 max-w-4xl mx-auto">
       <h2 className="text-4xl font-headline mb-10 text-center">Our Prices</h2>
       <div className="grid gap-6">
-        <div className="bg-surface p-6 rounded-2xl border border-surface-variant flex justify-between items-center">
-          <span className="text-lg font-bold">Smile Design</span>
-          <span className="text-xl font-bold text-primary">$500</span>
-        </div>
-        <div className="bg-surface p-6 rounded-2xl border border-surface-variant flex justify-between items-center">
-          <span className="text-lg font-bold">Dental Implants</span>
-          <span className="text-xl font-bold text-primary">$1500</span>
-        </div>
-        <div className="bg-surface p-6 rounded-2xl border border-surface-variant flex justify-between items-center">
-          <span className="text-lg font-bold">Orthodontics</span>
-          <span className="text-xl font-bold text-primary">$2000</span>
-        </div>
+        {services.map(s => (
+          <div key={s.id} className="bg-surface p-6 rounded-2xl border border-surface-variant flex justify-between items-center">
+            <span className="text-lg font-bold">{s.name}</span>
+            <span className="text-xl font-bold text-primary">${s.price}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
