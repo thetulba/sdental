@@ -4977,43 +4977,6 @@ function MainContent() {
                     </div>
                   </section>
                   
-                  {/* Tech Spotlight Section */}
-                  <section className="py-32 bg-on-surface text-white overflow-hidden">
-                    <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-center">
-                      <div className="relative">
-                        <div className="aspect-square rounded-[40px] overflow-hidden">
-                          <img 
-                            src="https://images.unsplash.com/photo-1606811841660-1b5168c34714?q=80&w=2070&auto=format&fit=crop" 
-                            alt="Advanced Tech" 
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
-                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
-                      </div>
-                      <div>
-                        <div className="text-primary font-bold mb-4 flex items-center gap-2">
-                          <div className="w-8 h-[2px] bg-primary" />
-                          {t('tech.badge')}
-                        </div>
-                        <h2 className="font-headline text-4xl md:text-5xl mb-8 leading-tight">
-                          {t('tech.title')}
-                        </h2>
-                        <p className="text-white/60 text-lg mb-10 leading-relaxed">
-                          {t('tech.desc')}
-                        </p>
-                        <ul className="space-y-4">
-                          {(t('tech.items', { returnObjects: true }) as string[]).map((item, i) => (
-                            <li key={i} className="flex items-center gap-3">
-                              <CheckCircle2 className="w-5 h-5 text-primary" />
-                              <span className="font-medium">{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </section>
-
                   {/* Testimonials */}
                   <section className="py-32">
                     <div className="max-w-7xl mx-auto px-6">
