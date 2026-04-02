@@ -102,6 +102,7 @@ import {
 import { format, addHours, startOfDay, isSameDay, parseISO, isAfter } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { DataImport } from './components/DataImport';
+import { GoogleReviews } from './components/GoogleReviews';
 import { ThemeProvider, useTheme } from './lib/ThemeContext';
 
 // --- Types ---
@@ -4970,6 +4971,11 @@ function MainContent() {
               <Hero onBook={() => setScreen('booking')} />
               <Stats />
               <Services />
+              <section className="py-16 bg-surface">
+                <div className="max-w-7xl mx-auto px-6">
+                  <GoogleReviews placeId="ChIJN1t_tDeuEmsRUsoyG83frY4" />
+                </div>
+              </section>
               
               {/* Tech Spotlight Section */}
               <section className="py-32 bg-on-surface text-white overflow-hidden">

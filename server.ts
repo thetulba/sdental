@@ -204,6 +204,22 @@ async function startServer() {
   });
 
   // Existing API Routes
+  app.get("/api/reviews", async (req, res) => {
+    const { placeId } = req.query;
+    if (!placeId) return res.status(400).json({ error: "placeId is required" });
+    
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "API key not configured" });
+
+    try {
+      const response = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=reviews&key=${apiKey}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/admin/create-user", async (req, res) => {
     const { email, password, name, role, adminUid } = req.body;
 
