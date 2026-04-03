@@ -3264,13 +3264,17 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
   );
 };
 
+import CephalometricAnalysis from './components/CephalometricAnalysis';
+
+// ... (existing imports)
+
 const StaffDashboard = () => {
   const { t } = useTranslation();
   const { profile } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [experts, setExperts] = useState<Expert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'appointments' | 'experts' | 'team' | 'import' | 'staff'>('appointments');
+  const [tab, setTab] = useState<'appointments' | 'experts' | 'team' | 'import' | 'staff' | 'cephalometric'>('appointments');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedOrthoId, setSelectedOrthoId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -3358,7 +3362,7 @@ const StaffDashboard = () => {
       <div className="w-64 bg-surface border-r border-surface-variant p-6 flex flex-col gap-6">
         <div className="text-2xl font-headline text-primary">Dentolize</div>
         <nav className="flex flex-col gap-2">
-          {['Appointments', 'Finances', 'Inventory'].map((item) => (
+          {['Appointments', 'Experts', 'Team', 'Import', 'Staff', 'Cephalometric'].map((item) => (
             <button
               key={item}
               onClick={() => setTab(item.toLowerCase() as any)}
@@ -3437,6 +3441,7 @@ const StaffDashboard = () => {
         {tab === 'team' && <TeamManagement />}
         {tab === 'import' && <DataImport />}
         {tab === 'staff' && <StaffManagement />}
+        {tab === 'cephalometric' && <CephalometricAnalysis />}
       </div>
     </div>
   );

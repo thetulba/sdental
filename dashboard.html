@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dentolize Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .sidebar { background-color: #004a7c; }
+        .bg-app { background-color: #f4f7f9; }
+    </style>
+</head>
+<body class="bg-app font-sans text-gray-800">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="sidebar w-64 text-white p-4 flex flex-col justify-between">
+            <nav class="space-y-2">
+                <div class="text-xl font-bold mb-6 px-2"><i class="fas fa-chart-line mr-2"></i>Dashboard</div>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded flex justify-between"><span><i class="fas fa-calendar mr-3"></i>Calendar</span><span class="bg-red-500 text-xs px-1.5 rounded">99+</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded flex justify-between"><span><i class="fas fa-user-injured mr-3"></i>Patients</span><span class="bg-red-500 text-xs px-1.5 rounded">99+</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded flex justify-between"><span><i class="fas fa-bell mr-3"></i>Reminders</span><span class="bg-red-500 text-xs px-1.5 rounded">5</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded"><span><i class="fas fa-flask mr-3"></i>Lab Orders</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded flex justify-between"><span><i class="fas fa-wallet mr-3"></i>Finances</span><span class="bg-red-500 text-xs px-1.5 rounded">99+</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded"><span><i class="fas fa-box mr-3"></i>Inventory</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded"><span><i class="fas fa-users mr-3"></i>Associates</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded flex justify-between"><span><i class="fas fa-cog mr-3"></i>Settings</span><span class="bg-red-500 text-xs px-1.5 rounded">1</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded"><span><i class="fas fa-file-alt mr-3"></i>Logs</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded"><span><i class="fas fa-chart-bar mr-3"></i>Analytics</span></a>
+            </nav>
+            <div class="space-y-2">
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded flex justify-between"><span><i class="fas fa-headset mr-3"></i>Support</span><span class="bg-red-500 text-xs px-1.5 rounded">1</span></a>
+                <a href="#" class="block p-2 hover:bg-blue-800 rounded"><i class="fas fa-sign-out-alt mr-3"></i>Logout</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col">
+            <!-- Top Tabs -->
+            <header class="bg-white border-b p-2 flex gap-4 text-sm text-gray-600">
+                <button class="px-4 py-2 bg-gray-100 rounded font-semibold text-black"><i class="fas fa-chart-pie mr-2"></i>Dashboard</button>
+                <button class="px-4 py-2 hover:bg-gray-50 rounded"><i class="fas fa-wallet mr-2"></i>Payments</button>
+                <button class="px-4 py-2 hover:bg-gray-50 rounded"><i class="fas fa-box mr-2"></i>Inventory</button>
+                <button class="px-4 py-2 hover:bg-gray-50 rounded"><i class="fas fa-list mr-2"></i>Summary</button>
+            </header>
+
+            <!-- Filter Bar -->
+            <section class="p-4 flex items-center gap-6 bg-white border-b text-sm">
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Date</label>
+                    <div class="border border-blue-300 p-2 rounded flex items-center gap-4">
+                        <i class="fas fa-chevron-left text-gray-400 cursor-pointer"></i>
+                        <span class="text-blue-800">Thu 02 Apr 2026</span>
+                        <span class="text-gray-400">→</span>
+                        <span class="text-blue-800">Thu 02 Apr 2026</span>
+                        <i class="fas fa-calendar text-gray-400 cursor-pointer"></i>
+                        <i class="fas fa-chevron-right text-gray-400 cursor-pointer"></i>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Appointment's Doctor</label>
+                    <select class="border p-2 rounded w-64 text-blue-800 font-bold"><option>mohamed ahmed moha...</option></select>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-xs text-gray-500">Invoice Assigned To</label>
+                    <select class="border p-2 rounded w-64 text-gray-400"><option>Assigned To</option></select>
+                </div>
+                <div class="ml-auto bg-blue-50 text-blue-800 font-bold px-4 py-2 rounded border border-blue-200">04:34:31 PM</div>
+            </section>
+
+            <!-- Cards -->
+            <section class="flex-1 p-6 flex gap-6 overflow-hidden">
+                <!-- Appointments -->
+                <div class="flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="font-bold"><i class="fas fa-calendar mr-2"></i>Appointments</h2>
+                        <a href="#" class="text-blue-600 text-sm">View All</a>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-4">
+                        <span class="bg-blue-400 text-white px-2 py-0.5 rounded text-xs">Open</span>
+                        <span class="bg-blue-800 text-white px-2 py-0.5 rounded text-xs">Confirmed</span>
+                        <span class="bg-teal-500 text-white px-2 py-0.5 rounded text-xs">Checked In</span>
+                        <span class="bg-purple-600 text-white px-2 py-0.5 rounded text-xs">In Progress</span>
+                        <span class="bg-green-600 text-white px-2 py-0.5 rounded text-xs">Completed</span>
+                        <span class="bg-yellow-500 text-white px-2 py-0.5 rounded text-xs">Delayed</span>
+                        <span class="bg-pink-500 text-white px-2 py-0.5 rounded text-xs">Canceled</span>
+                        <span class="bg-red-800 text-white px-2 py-0.5 rounded text-xs">No Show</span>
+                        <span class="bg-yellow-600 text-white px-2 py-0.5 rounded text-xs">Waiting List</span>
+                        <span class="bg-gray-500 text-white px-2 py-0.5 rounded text-xs">Note</span>
+                    </div>
+                    <div class="flex-1 overflow-y-auto space-y-3">
+                        <!-- Appointment Card Example -->
+                        <div class="bg-green-800 text-white p-4 rounded-lg shadow">
+                            <div class="font-bold">Nur Athirah Auni <i class="fas fa-coins text-yellow-400 ml-1"></i></div>
+                            <div class="text-sm bg-gray-600 p-1 rounded mt-1 inline-block">mohamed ahmed mohamed tulba</div>
+                            <div class="mt-2 flex gap-2">
+                                <span class="bg-red-400 text-white text-xs px-2 py-1 rounded"><i class="fas fa-bell mr-1"></i>Pending Confirmation</span>
+                                <span class="bg-blue-500 text-white text-xs px-2 py-1 rounded">WhatsApp</span>
+                            </div>
+                            <div class="flex justify-between mt-2 text-sm">
+                                <span class="bg-blue-400 px-2 py-0.5 rounded">Examination</span>
+                                <span>Apr 2, 2026 12:00 - 12:20 PM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoices -->
+                <div class="flex-1 flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold"><i class="fas fa-file-invoice mr-2"></i>Invoices</h2>
+                        <div class="flex items-center gap-4">
+                            <a href="#" class="text-blue-600 text-sm">View All</a>
+                            <label class="text-sm"><input type="checkbox" class="mr-1" checked>Required to pay only</label>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto space-y-3">
+                        <!-- Invoice Item Example -->
+                        <div class="bg-white p-4 rounded border shadow-sm">
+                            <div class="flex justify-between">
+                                <span class="font-bold">Khansa Rizal Salsabila <span class="text-gray-500 text-sm">#984</span></span>
+                                <span class="font-bold text-blue-800">EGP 21,000</span>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>+62 81371390778</span>
+                                <span>EGP 5,000</span>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span class="text-red-500">23%</span>
+                                <span>EGP 16,000</span>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button class="bg-blue-600 text-white text-xs px-2 py-1 rounded"><i class="fas fa-plus mr-1"></i>Add Payment</button>
+                                <button class="border px-2 py-1 rounded text-xs"><i class="fas fa-print"></i></button>
+                                <button class="border px-2 py-1 rounded text-xs"><i class="fas fa-qrcode"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

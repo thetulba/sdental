@@ -53,61 +53,8 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
-    match /experts/{expertId} {
-      allow read: if true;
-      allow write: if isAdmin() && request.resource.data.keys().hasAll(['name', 'role', 'description', 'order']) &&
-                      request.resource.data.name is string && request.resource.data.name.size() < 100 &&
-                      request.resource.data.role is string && request.resource.data.role.size() < 100 &&
-                      request.resource.data.description is string && request.resource.data.description.size() < 1000 &&
-                      request.resource.data.order is number;
-    }
-
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isDoctor() || isAdmin();
-    }
-
-    match /portfolio/{caseId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /patients/{patientId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isReceptionist() || isDoctor();
-      allow delete: if isAdmin();
-    }
-
-    match /payments/{paymentId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAccountant();
-      allow delete: if isAdmin();
-    }
-
-    match /invoices/{invoiceId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAccountant();
-      allow delete: if isAdmin();
-    }
-
-    match /appointments/{appointmentId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isReceptionist() || isDoctor();
-      allow delete: if isAdmin();
-    }
-
-    match /backups/{backupId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /promocodes/{code} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /services/{serviceId} {
-      allow read: if true;
-      allow write: if isAdmin();
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
     }
   }
 }
