@@ -26,9 +26,9 @@ async function startServer() {
   try {
     // Initialize Firebase Admin
     if (admin.apps.length === 0) {
-      console.log("Initializing Firebase Admin with project ID:", "gen-lang-client-0468371419");
+      console.log("Initializing Firebase Admin...");
       admin.initializeApp({
-        projectId: "gen-lang-client-0468371419",
+        credential: admin.credential.applicationDefault(),
       });
       console.log("Firebase Admin initialized successfully.");
     }
@@ -36,8 +36,9 @@ async function startServer() {
     console.error("Firebase Admin initialization failed:", error);
   }
 
-  const db = admin.firestore();
-  const auth = admin.auth();
+  const firebaseApp = admin.app();
+  const db = admin.firestore(firebaseApp);
+  const auth = admin.auth(firebaseApp);
 
   const JWT_SECRET = process.env.JWT_SECRET || "dental-staff-secret-key-2026";
   const OFFICE_LAT = 51.5074;
@@ -110,7 +111,7 @@ async function startServer() {
   });
 
   app.post("/api/promo/validate", async (req, res) => {
-    const { code } = req.body;
+    const { code, subtotal } = req.body;
     try {
       const promoRef = db.collection('promocodes').doc(code);
       const promoDoc = await promoRef.get();
@@ -124,7 +125,16 @@ async function startServer() {
       if (promoData.expiresAt && new Date(promoData.expiresAt) < new Date()) {
         return res.status(400).json({ error: "Promo code expired" });
       }
-      res.json({ discountPercent: promoData.discountPercent });
+
+      let discount = 0;
+      if (promoData.discountType === 'percentage') {
+        discount = (subtotal * promoData.discountValue) / 100;
+      } else if (promoData.discountType === 'fixed') {
+        discount = promoData.discountValue;
+      }
+
+      const finalTotal = Math.max(0, subtotal - discount);
+      res.json({ discount, finalTotal });
     } catch (error) {
       console.error("Error validating promo code:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -244,24 +254,31 @@ async function startServer() {
 
   app.post("/api/admin/create-user", async (req, res) => {
     const { email, password, name, role, adminUid } = req.body;
+    console.log("adminUid:", adminUid);
 
     try {
       // Verify the requester is an admin/owner
+      console.log("Fetching requesterDoc for:", adminUid);
       const requesterDoc = await db.collection("users").doc(adminUid).get();
+      console.log("requesterDoc exists:", requesterDoc.exists);
       const requesterData = requesterDoc.data();
+      console.log("requesterData:", requesterData);
       
       const isOwner = requesterData?.role === "owner" || requesterData?.email === "the.tulba@gmail.com";
+      console.log("isOwner:", isOwner);
       
       if (!isOwner) {
         return res.status(403).json({ error: "Unauthorized. Only owners can create staff accounts." });
       }
 
       // Create Firebase Auth User
+      console.log("Attempting to create user with email:", email);
       const userRecord = await auth.createUser({
         email,
         password,
         displayName: name,
       });
+      console.log("User created successfully:", userRecord.uid);
 
       // Create User Profile in Firestore
       await db.collection("users").doc(userRecord.uid).set({

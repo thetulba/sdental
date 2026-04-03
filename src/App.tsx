@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext, ReactNode, Component } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode, Component, Suspense, lazy } from 'react';
 import { SettingsManagement } from './components/SettingsManagement';
 import { 
   Menu, 
@@ -583,21 +583,25 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
               </button>
             </div>
           ) : (
-            <button 
-              onClick={login}
-              disabled={isLoggingIn}
-              className={cn(
-                "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all hover:scale-105 active:scale-95 flex items-center gap-2",
-                isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
-              )}
-            >
-              {isLoggingIn ? (
-                <Sparkles className="w-4 h-4 animate-spin" />
-              ) : (
-                <Users className="w-4 h-4" />
-              )}
-              {isLoggingIn ? t('nav.signingIn') || 'Signing in...' : t('nav.signIn')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setScreen('staff-portal')}
+                className="bg-surface-container-low text-on-surface px-6 py-2.5 rounded-full text-sm font-semibold shadow-sm hover:bg-surface-container transition-all"
+              >
+                Staff Portal
+              </button>
+              <button 
+                onClick={login}
+                disabled={isLoggingIn}
+                className={cn(
+                  "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all hover:scale-105 active:scale-95 flex items-center gap-2",
+                  isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
+                )}
+              >
+                {isLoggingIn ? <Sparkles className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                Patient Portal
+              </button>
+            </div>
           )}
         </div>
 
@@ -712,16 +716,28 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
                     </button>
                   </div>
                 ) : (
-                  <button 
-                    onClick={() => {
-                      login();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="bg-primary text-white w-full py-4 rounded-2xl text-center font-bold shadow-lg flex items-center justify-center gap-2"
-                  >
-                    <Users className="w-5 h-5" />
-                    {t('nav.signIn')}
-                  </button>
+                  <div className="space-y-3">
+                    <button 
+                      onClick={() => {
+                        setScreen('staff-portal');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="bg-surface-container-low text-on-surface w-full py-4 rounded-2xl text-center font-bold shadow-sm flex items-center justify-center gap-2"
+                    >
+                      <Lock className="w-5 h-5" />
+                      Staff Portal
+                    </button>
+                    <button 
+                      onClick={() => {
+                        login();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="bg-primary text-white w-full py-4 rounded-2xl text-center font-bold shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <Users className="w-5 h-5" />
+                      Patient Portal
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -3406,6 +3422,8 @@ const StaffDashboard = () => {
   );
 };
 
+const BookingPage = lazy(() => import('./pages/BookingPage'));
+
 const ExpertManagement = ({ experts }: { experts: Expert[] }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Expert>>({});
@@ -3650,7 +3668,7 @@ const TeamManagement = () => {
             </thead>
             <tbody className="divide-y divide-surface-variant">
               {staff.map(s => (
-                <tr key={s.id} className="hover:bg-surface-container-low transition-colors">
+                <tr key={s.uid} className="hover:bg-surface-container-low transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-primary font-bold">
@@ -3711,13 +3729,17 @@ const CreateStaffModal = ({ onClose }: { onClose: () => void }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth.currentUser) {
+      setError('You must be logged in to create staff members.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
       const response = await fetch('/api/admin/create-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, adminUid: auth.currentUser?.uid })
       });
       
       if (!response.ok) {
@@ -4674,223 +4696,7 @@ const PortfolioScreen = () => {
   );
 };
 
-const BookingScreen = () => {
-  const { profile, login } = useAuth();
-  const { t } = useTranslation();
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [bookedDetails, setBookedDetails] = useState<{
-    patientName: string;
-    service: string;
-    time: Date;
-  } | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!profile) {
-      login();
-      return;
-    }
-    setLoading(true);
-    const formData = new FormData(e.target as HTMLFormElement);
-    const type = formData.get('type') as Appointment['type'];
-    const phone = formData.get('phone') as string;
-    const startTime = addHours(startOfDay(new Date()), 10); // Mock time
-    
-    try {
-      // Update profile with phone if missing
-      if (profile && !profile.phone) {
-        await setDoc(doc(db, 'users', profile.uid), { phone }, { merge: true });
-      }
-
-      await addDoc(collection(db, 'appointments'), {
-        patientId: profile.uid,
-        patientName: profile.name,
-        dentistId: 'default_dentist',
-        dentistName: 'Dr. Sarah Johnson',
-        startTime: Timestamp.fromDate(startTime),
-        endTime: Timestamp.fromDate(addHours(startTime, 1)),
-        type,
-        status: 'booked'
-      });
-      setBookedDetails({
-        patientName: profile.name,
-        service: type,
-        time: startTime
-      });
-      setSubmitted(true);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'appointments');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (submitted && bookedDetails) {
-    return (
-      <div className="pt-32 pb-20 flex items-center justify-center min-h-[80vh] px-6">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          className="bg-white rounded-[40px] shadow-2xl max-w-2xl w-full overflow-hidden border border-surface-variant"
-        >
-          <div className="bg-primary p-12 text-center text-white relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-              <Sparkles className="w-full h-full scale-150 rotate-12" />
-            </div>
-            <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-6 border border-white/30">
-              <CheckCircle2 className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-4xl font-headline mb-2">{t('booking.confirmation.title')}</h2>
-            <p className="text-white/80">{t('booking.success.desc')}</p>
-          </div>
-
-          <div className="p-10 space-y-10">
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <h3 className="font-headline text-xl flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  {t('booking.confirmation.details')}
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-3 border-b border-surface-variant">
-                    <span className="text-sm text-on-surface-variant font-medium">{t('booking.confirmation.patient')}</span>
-                    <span className="font-bold">{bookedDetails.patientName}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b border-surface-variant">
-                    <span className="text-sm text-on-surface-variant font-medium">{t('booking.confirmation.service')}</span>
-                    <span className="font-bold capitalize">{bookedDetails.service}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b border-surface-variant">
-                    <span className="text-sm text-on-surface-variant font-medium">{t('booking.confirmation.date')}</span>
-                    <span className="font-bold">{format(bookedDetails.time, 'PPP p')}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <h3 className="font-headline text-xl flex items-center gap-2">
-                  <ArrowRight className="w-5 h-5 text-primary" />
-                  {t('booking.confirmation.nextSteps')}
-                </h3>
-                <div className="space-y-4">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="flex gap-4 items-start">
-                      <div className="w-6 h-6 rounded-full bg-surface-container text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                        {i}
-                      </div>
-                      <p className="text-sm text-on-surface-variant leading-relaxed">
-                        {t(`booking.confirmation.step${i}`)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-6">
-              <button 
-                onClick={() => window.location.reload()}
-                className="w-full bg-primary text-white py-5 rounded-2xl font-bold shadow-lg hover:bg-primary-container transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                {t('booking.confirmation.done')}
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pt-32 pb-20">
-      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-20 items-start">
-        <div>
-          <h1 className="font-headline text-5xl mb-6">{t('booking.title')}</h1>
-          <p className="text-on-surface-variant text-lg mb-12">
-            {t('booking.subtitle')}
-          </p>
-          
-          <div className="space-y-8">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-surface-container rounded-2xl flex items-center justify-center text-primary shrink-0">
-                <Phone className="w-6 h-6" />
-              </div>
-              <div>
-                <h4 className="font-bold mb-1">Call Us Directly</h4>
-                <p className="text-on-surface-variant">+20 100 123 4567</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-surface-container rounded-2xl flex items-center justify-center text-primary shrink-0">
-                <MapPin className="w-6 h-6" />
-              </div>
-              <div>
-                <h4 className="font-bold mb-1">Our Location</h4>
-                <p className="text-on-surface-variant">45 El-Batal Ahmed Abdel Aziz St, Mohandessin, Giza, Egypt</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-surface-container rounded-2xl flex items-center justify-center text-primary shrink-0">
-                <Clock className="w-6 h-6" />
-              </div>
-              <div>
-                <h4 className="font-bold mb-1">Working Hours</h4>
-                <p className="text-on-surface-variant">Sat - Thu: 11:00 AM - 9:00 PM</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-10 rounded-[40px] shadow-xl border border-surface-variant">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold ml-1">{t('booking.form.firstName')}</label>
-                <input required name="firstName" type="text" defaultValue={profile?.name.split(' ')[0]} className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none" placeholder="John" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold ml-1">{t('booking.form.lastName')}</label>
-                <input required name="lastName" type="text" defaultValue={profile?.name.split(' ')[1]} className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none" placeholder="Doe" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">{t('booking.form.email')}</label>
-              <input required name="email" type="email" defaultValue={profile?.email} className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none" placeholder="john@example.com" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">Phone Number (for reminders)</label>
-              <input required name="phone" type="tel" defaultValue={profile?.phone} className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none" placeholder="+20 100 123 4567" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">{t('booking.form.service')}</label>
-              <select name="type" className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none appearance-none">
-                <option value="checkup">General Checkup</option>
-                <option value="surgery">Smile Design / Veneers</option>
-                <option value="emergency">Emergency Care</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">{t('booking.form.message')}</label>
-              <textarea name="message" className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none h-32" placeholder="Tell us about your dental goals..."></textarea>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1">Promo Code (Optional)</label>
-              <input name="promoCode" type="text" className="w-full bg-surface-container-low border-none rounded-2xl p-4 focus:ring-2 focus:ring-primary outline-none" placeholder="Enter promo code" />
-            </div>
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-primary text-white py-5 rounded-2xl font-bold shadow-lg hover:bg-primary-container transition-all disabled:opacity-50"
-            >
-              {loading ? t('booking.form.submitting') : profile ? t('booking.form.submit') : t('booking.form.signInToBook')}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
+import { ServiceSelection } from './components/ServiceSelection';
 
 const Footer = ({ logo, setScreen }: { logo: string | null, setScreen: (s: Screen) => void }) => {
   const { t } = useTranslation();
@@ -5032,7 +4838,11 @@ function MainContent() {
 
               {screen === 'experts' && <ExpertsScreen />}
           {screen === 'portfolio' && <PortfolioScreen />}
-          {screen === 'booking' && <BookingScreen />}
+          {screen === 'booking' && (
+            <Suspense fallback={<div className="pt-32 pb-20 text-center">Loading...</div>}>
+              <BookingPage />
+            </Suspense>
+          )}
           
           {screen === 'contact' && (
             <div className="pt-32 pb-20 bg-background min-h-screen">

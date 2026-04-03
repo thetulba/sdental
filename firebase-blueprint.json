@@ -161,11 +161,12 @@
       "type": "object",
       "properties": {
         "code": { "type": "string" },
-        "discountPercent": { "type": "number" },
+        "discountType": { "type": "string", "enum": ["percentage", "fixed"] },
+        "discountValue": { "type": "number" },
         "isActive": { "type": "boolean" },
         "expiresAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["code", "discountPercent", "isActive"]
+      "required": ["code", "discountType", "discountValue", "isActive"]
     },
     "Service": {
       "title": "Service",

@@ -54,7 +54,7 @@ service cloud.firestore {
     // ===============================================================
 
     match /experts/{expertId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin() && request.resource.data.keys().hasAll(['name', 'role', 'description', 'order']) &&
                       request.resource.data.name is string && request.resource.data.name.size() < 100 &&
                       request.resource.data.role is string && request.resource.data.role.size() < 100 &&

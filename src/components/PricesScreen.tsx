@@ -19,7 +19,7 @@ export const PricesScreen = () => {
         {services.map(s => (
           <div key={s.id} className="bg-surface p-6 rounded-2xl border border-surface-variant flex justify-between items-center">
             <span className="text-lg font-bold">{s.name}</span>
-            <span className="text-xl font-bold text-primary">${s.price}</span>
+            <span className="text-xl font-bold text-primary">{s.price} EGP</span>
           </div>
         ))}
       </div>
