@@ -482,7 +482,7 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
         <div className="flex items-center gap-4">
           <Logo 
             logo={logo} 
-            className="w-11 h-11"
+            className="w-11 h-11 shrink-0"
           />
           
           <div 

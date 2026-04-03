@@ -18,6 +18,10 @@ export const GoogleReviews = ({ placeId }: { placeId: string }) => {
     const fetchReviews = async () => {
       try {
         const response = await fetch(`/api/reviews?placeId=${placeId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Failed to fetch reviews: ${response.statusText}`);
+        }
         const data = await response.json();
         if (data.result && data.result.reviews) {
           setReviews(data.result.reviews);
