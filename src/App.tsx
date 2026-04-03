@@ -15,6 +15,7 @@ import {
   Facebook, 
   Linkedin,
   ChevronRight,
+  ChevronLeft,
   Sparkles,
   Stethoscope,
   HeartPulse,
@@ -109,7 +110,7 @@ import { ThemeProvider, useTheme } from './lib/ThemeContext';
 
 // --- Types ---
 type Role = 'patient' | 'staff' | 'dentist' | 'admin' | 'owner';
-type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'contact' | 'prices';
+type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'contact' | 'prices' | 'staff-login';
 
 interface UserProfile {
   uid: string;
@@ -339,17 +340,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await loginWithGoogle();
     } catch (error: any) {
-      console.error("Login Error in App.tsx:", error.code, error.message);
       if (error.code === 'auth/popup-blocked') {
         alert('The login popup was blocked by your browser. Please allow popups for this site and try again.');
       } else if (error.code === 'auth/unauthorized-domain') {
         alert('This domain is not authorized for Firebase Authentication. Please add this domain to the "Authorized domains" list in your Firebase Console (Authentication > Settings > Authorized domains).');
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        console.log('Login popup request was cancelled.');
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        console.log('Login popup was closed by the user.');
+      } else if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+        console.log('Login popup was closed or cancelled by the user.');
       } else {
-        console.error("Login Error:", error);
+        console.error("Login Error in App.tsx:", error.code, error.message);
         alert('Login failed: ' + (error.message || 'Unknown error'));
       }
     } finally {
@@ -582,17 +580,25 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
               </button>
             </div>
           ) : (
-            <button 
-              onClick={login}
-              disabled={isLoggingIn}
-              className={cn(
-                "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all active:scale-95 flex items-center gap-2",
-                isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
-              )}
-            >
-              {isLoggingIn ? <Sparkles className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-              Sign In
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setScreen('staff-login')}
+                className="text-sm font-semibold text-on-surface hover:text-primary transition-colors px-4 py-2"
+              >
+                Staff Portal
+              </button>
+              <button 
+                onClick={login}
+                disabled={isLoggingIn}
+                className={cn(
+                  "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all active:scale-95 flex items-center gap-2",
+                  isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
+                )}
+              >
+                {isLoggingIn ? <Sparkles className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                Patient Portal
+              </button>
+            </div>
           )}
         </div>
 
@@ -2942,9 +2948,17 @@ const PatientProfileView = ({ patientId, onBack }: { patientId: string, onBack: 
             <div className="animate-in fade-in duration-500">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="font-headline text-2xl">Surgical & Major Operations</h3>
-                <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
-                  <Plus className="w-4 h-4" /> Record Operation
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setOperations([])}
+                    className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" /> Clear History
+                  </button>
+                  <button className="bg-primary text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2">
+                    <Plus className="w-4 h-4" /> Record Operation
+                  </button>
+                </div>
               </div>
               <div className="space-y-4">
                 {operations.map((op, i) => (
@@ -3154,6 +3168,7 @@ const StaffDashboard = () => {
   const [tab, setTab] = useState<'appointments' | 'experts' | 'team' | 'import' | 'staff'>('appointments');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedOrthoId, setSelectedOrthoId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
     const q = query(collection(db, 'appointments'), orderBy('startTime', 'desc'));
@@ -3293,111 +3308,83 @@ const StaffDashboard = () => {
       </div>
 
       {tab === 'appointments' && (
-        <div className="bg-white rounded-[32px] border border-surface-variant overflow-hidden">
-          <div className="p-6 border-b border-surface-variant flex items-center justify-between">
-            <h3 className="font-headline text-xl">Today's Schedule</h3>
-            <div className="flex items-center gap-2 bg-surface-container-low px-4 py-2 rounded-xl">
-              <Search className="w-4 h-4 text-on-surface-variant" />
-              <input type="text" placeholder="Search patients..." className="bg-transparent border-none outline-none text-sm" />
+        <div className="flex gap-8">
+          {/* Main Content: Appointments */}
+          <div className={cn("flex-grow bg-white rounded-[32px] border border-surface-variant overflow-hidden shadow-sm", !isSidebarOpen && "lg:col-span-3")}>
+            <div className="p-6 border-b border-surface-variant flex items-center justify-between">
+              <h3 className="font-headline text-xl">Today's Schedule</h3>
+              <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 bg-surface-container rounded-lg text-on-surface-variant hover:text-primary transition-colors"
+              >
+                {isSidebarOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              </button>
+            </div>
+            <div className="divide-y divide-surface-variant">
+              {appointments.map(a => (
+                <div key={a.id} className="p-6 hover:bg-surface-container-low transition-colors flex items-center gap-4">
+                  <div className="text-sm font-bold w-20">{format(a.startTime.toDate(), 'p')}</div>
+                  <div className="flex-grow">
+                    <button 
+                      onClick={() => setSelectedPatientId(a.patientId)}
+                      className="font-bold text-primary hover:underline block"
+                    >
+                      {a.patientName}
+                    </button>
+                    <div className="text-xs text-on-surface-variant">{a.dentistName} • {a.type}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
+                      a.status === 'completed' ? "bg-green-100 text-green-700" : 
+                      a.status === 'cancelled' ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                    )}>
+                      {a.status}
+                    </span>
+                    <div className="flex gap-1">
+                      <button className="p-1.5 bg-surface-container rounded-lg text-on-surface-variant hover:text-primary transition-colors">
+                        <Smartphone className="w-4 h-4" />
+                      </button>
+                      <button className="p-1.5 bg-surface-container rounded-lg text-green-600 hover:text-green-700 transition-colors">
+                        <MessageSquare className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-surface-container-low text-xs uppercase tracking-wider font-bold text-on-surface-variant">
-                <tr>
-                  <th className="px-6 py-4">Time</th>
-                  <th className="px-6 py-4">Patient</th>
-                  <th className="px-6 py-4">Dentist</th>
-                  <th className="px-6 py-4">Type</th>
-                  <th className="px-6 py-4">Reminders</th>
-                  <th className="px-6 py-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-variant">
-                {appointments.map(a => (
-                  <tr key={a.id} className="hover:bg-surface-container-low transition-colors">
-                    <td className="px-6 py-4 text-sm font-bold">{format(a.startTime.toDate(), 'p')}</td>
-                    <td className="px-6 py-4 text-sm">
-                      <button 
-                        onClick={() => setSelectedPatientId(a.patientId)}
-                        className="font-bold text-primary hover:underline"
-                      >
-                        {a.patientName}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 text-sm">{a.dentistName}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold",
-                        a.type === 'emergency' ? "bg-red-100 text-red-700" : "bg-surface-container text-on-surface-variant"
-                      )}>
-                        {a.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        {a.reminderSent_sms && (
-                          <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-fit">
-                            <Smartphone className="w-3 h-3" /> {t('dashboard.staff.reminders.smsSent')}
-                          </span>
-                        )}
-                        {a.reminderSent_whatsapp && (
-                          <span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-fit">
-                            <MessageSquare className="w-3 h-3" /> {t('dashboard.staff.reminders.whatsappSent')}
-                          </span>
-                        )}
-                        {!a.reminderSent_sms && !a.reminderSent_whatsapp && (
-                          <span className="text-[10px] text-on-surface-variant opacity-50 italic">{t('dashboard.staff.reminders.noReminders')}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <select 
-                          value={a.status}
-                          onChange={(e) => handleStatusUpdate(a.id, e.target.value as Appointment['status'])}
-                          className="text-xs font-bold bg-surface-container-low border border-surface-variant rounded-lg px-2 py-1 outline-none"
-                        >
-                          <option value="booked">Booked</option>
-                          <option value="checked-in">Checked In</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                        <div className="flex gap-1">
-                          <button 
-                            onClick={() => sendReminder(a.id, 'sms')}
-                            disabled={reminderLoading === `${a.id}-sms`}
-                            className="p-2 hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors disabled:opacity-50"
-                            title="Send SMS Reminder"
-                          >
-                            <Smartphone className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => sendReminder(a.id, 'whatsapp')}
-                            disabled={reminderLoading === `${a.id}-whatsapp`}
-                            className="p-2 hover:bg-surface-container rounded-lg text-green-600 transition-colors disabled:opacity-50"
-                            title="Send WhatsApp Reminder"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => setSelectedOrthoId(a.patientId)}
-                            className="p-2 hover:bg-primary/10 rounded-lg text-primary transition-colors"
-                            title="View Ortho Portal"
-                          >
-                            <Zap className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+
+          {/* Right Sidebar: Invoices */}
+          {isSidebarOpen && (
+            <div className="w-80 bg-white rounded-[32px] border border-surface-variant overflow-hidden shadow-sm shrink-0">
+              <div className="p-6 border-b border-surface-variant flex items-center justify-between">
+                <h3 className="font-headline text-xl">Recent Invoices</h3>
+              </div>
+              <div className="divide-y divide-surface-variant">
+                {/* Placeholder for Invoices - will be replaced with real data */}
+                <div className="p-6 text-sm flex items-center justify-between">
+                  <div>
+                    <div className="font-bold">Patient Name #984</div>
+                    <div className="text-xs text-on-surface-variant">1,200 EGP • Pending</div>
+                  </div>
+                  <button className="text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg">Add Payment</button>
+                </div>
+                <div className="p-6 text-sm flex items-center justify-between">
+                  <div>
+                    <div className="font-bold">Patient Name #985</div>
+                    <div className="text-xs text-on-surface-variant">3,500 EGP • Paid</div>
+                  </div>
+                  <button className="text-xs font-bold bg-surface-container text-on-surface-variant px-3 py-1.5 rounded-lg">View</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
-      {tab === 'experts' && <ExpertManagement experts={experts} />}
+
+
+{tab === 'experts' && <ExpertManagement experts={experts} />}
       {tab === 'team' && <TeamManagement />}
       {tab === 'import' && <DataImport />}
       {tab === 'staff' && <StaffManagement />}
@@ -4818,6 +4805,17 @@ function MainContent() {
                   <PricesScreen />
                 </motion.div>
               )}
+              {screen === 'staff-login' && (
+                <motion.div
+                  key="staff-login"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="min-h-screen flex items-center justify-center p-6"
+                >
+                  <StaffLoginForm />
+                </motion.div>
+              )}
 
               {screen === 'experts' && <ExpertsScreen />}
           {screen === 'portfolio' && <PortfolioScreen />}
@@ -5842,7 +5840,7 @@ const SettingsModal = ({ isOpen, onClose, logo, setLogo }: { isOpen: boolean, on
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative bg-surface rounded-[32px] p-8 w-full max-w-md shadow-2xl border border-outline-variant dark:bg-surface-container"
+            className="relative bg-surface rounded-[32px] p-8 w-full max-w-md shadow-2xl border border-outline-variant dark:bg-surface-container max-h-[80vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-headline text-on-surface">App Settings</h2>

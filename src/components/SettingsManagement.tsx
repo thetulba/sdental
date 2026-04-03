@@ -36,7 +36,7 @@ export const SettingsManagement = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-full overflow-hidden">
       <div>
         <h3 className="font-bold mb-4">Manage Services</h3>
         <div className="space-y-2 mb-4">
