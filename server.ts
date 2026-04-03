@@ -110,6 +110,27 @@ async function startServer() {
     }
   });
 
+  // Patient Login Route
+  app.post("/api/patient/login", async (req, res) => {
+    const { patientId, password } = req.body;
+    try {
+      const patientDoc = await db.collection("patient_credentials").doc(patientId).get();
+      if (!patientDoc.exists) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      const patientData = patientDoc.data();
+      const isMatch = await bcrypt.compare(password, patientData?.password);
+      if (!isMatch) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      const token = jwt.sign({ patientId }, JWT_SECRET, { expiresIn: '1h' });
+      res.json({ token, patient: { id: patientId, name: patientData?.name } });
+    } catch (error) {
+      console.error("Patient login error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.post("/api/promo/validate", async (req, res) => {
     const { code, subtotal } = req.body;
     try {

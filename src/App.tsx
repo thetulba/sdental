@@ -110,7 +110,7 @@ import { ThemeProvider, useTheme } from './lib/ThemeContext';
 
 // --- Types ---
 type Role = 'patient' | 'staff' | 'dentist' | 'admin' | 'owner';
-type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'contact' | 'prices' | 'staff-login';
+type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'contact' | 'prices' | 'staff-login' | 'patient-login';
 
 interface UserProfile {
   uid: string;
@@ -210,6 +210,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isLoggingIn: boolean;
   updatePass: (newPass: string) => Promise<void>;
+  patientLogin: (patientId: string, pass: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -281,6 +282,67 @@ export const StaffAuthProvider = ({ children }: { children: ReactNode }) => {
 export const useStaffAuth = () => {
   const context = useContext(StaffAuthContext);
   if (!context) throw new Error('useStaffAuth must be used within a StaffAuthProvider');
+  return context;
+};
+
+// --- Patient Auth Context ---
+interface PatientSession {
+  token: string;
+  patient: {
+    id: string;
+    name: string;
+  };
+}
+
+interface PatientAuthContextType {
+  patientSession: PatientSession | null;
+  patientLogin: (patientId: string, pass: string) => Promise<void>;
+  patientLogout: () => void;
+  isPatientLoggingIn: boolean;
+}
+
+const PatientAuthContext = createContext<PatientAuthContextType | undefined>(undefined);
+
+export const PatientAuthProvider = ({ children }: { children: ReactNode }) => {
+  const [patientSession, setPatientSession] = useState<PatientSession | null>(() => {
+    const saved = localStorage.getItem('patient-session');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isPatientLoggingIn, setIsPatientLoggingIn] = useState(false);
+
+  const patientLogin = async (patientId: string, pass: string) => {
+    setIsPatientLoggingIn(true);
+    try {
+      const res = await fetch('/api/patient/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId, password: pass })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      
+      setPatientSession(data);
+      localStorage.setItem('patient-session', JSON.stringify(data));
+    } finally {
+      setIsPatientLoggingIn(false);
+    }
+  };
+
+  const patientLogout = () => {
+    setPatientSession(null);
+    localStorage.removeItem('patient-session');
+  };
+
+  return (
+    <PatientAuthContext.Provider value={{ patientSession, patientLogin, patientLogout, isPatientLoggingIn }}>
+      {children}
+    </PatientAuthContext.Provider>
+  );
+};
+
+export const usePatientAuth = () => {
+  const context = useContext(PatientAuthContext);
+  if (!context) throw new Error('usePatientAuth must be used within a PatientAuthProvider');
   return context;
 };
 
@@ -588,14 +650,12 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
                 Staff Portal
               </button>
               <button 
-                onClick={login}
-                disabled={isLoggingIn}
+                onClick={() => setScreen('patient-login')}
                 className={cn(
-                  "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all active:scale-95 flex items-center gap-2",
-                  isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
+                  "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all active:scale-95 flex items-center gap-2"
                 )}
               >
-                {isLoggingIn ? <Sparkles className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                <Users className="w-4 h-4" />
                 Patient Portal
               </button>
             </div>
@@ -4718,6 +4778,80 @@ const Footer = ({ logo, setScreen }: { logo: string | null, setScreen: (s: Scree
 
 // --- Main App ---
 
+const PatientLoginForm = () => {
+  const { patientLogin, isPatientLoggingIn } = usePatientAuth();
+  const [patientId, setPatientId] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await patientLogin(patientId, password);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-surface p-6 sm:p-8 rounded-3xl shadow-xl border border-outline-variant"
+      >
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-headline text-on-surface">Patient Portal</h2>
+          <p className="text-on-surface-variant text-sm mt-2">Please log in with your patient credentials</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Patient ID</label>
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant w-5 h-5" />
+              <input
+                type="text"
+                value={patientId}
+                onChange={(e) => setPatientId(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                placeholder="Enter Patient ID"
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Password</label>
+            <div className="relative">
+              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant w-5 h-5" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                placeholder="Enter password"
+                required
+              />
+            </div>
+          </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={isPatientLoggingIn}
+            className="w-full bg-primary text-white py-3 rounded-2xl font-semibold hover:bg-primary-container transition-all disabled:opacity-50"
+          >
+            {isPatientLoggingIn ? <Sparkles className="w-5 h-5 animate-spin mx-auto" /> : 'Log In'}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
 function MainContent() {
   const [screen, setScreen] = useState<Screen>('home');
   const [logo, setLogo] = useState<string | null>(() => localStorage.getItem('app-logo'));
@@ -4814,6 +4948,17 @@ function MainContent() {
                   className="min-h-screen flex items-center justify-center p-6"
                 >
                   <StaffLoginForm />
+                </motion.div>
+              )}
+              {screen === 'patient-login' && (
+                <motion.div
+                  key="patient-login"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="min-h-screen flex items-center justify-center p-6"
+                >
+                  <PatientLoginForm />
                 </motion.div>
               )}
 
@@ -4921,7 +5066,9 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <StaffAuthProvider>
-            <MainContent />
+            <PatientAuthProvider>
+              <MainContent />
+            </PatientAuthProvider>
           </StaffAuthProvider>
         </AuthProvider>
       </ThemeProvider>
