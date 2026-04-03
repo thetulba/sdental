@@ -69,11 +69,13 @@ export const loginWithGoogle = async () => {
     console.log("Login successful:", result.user.email);
     return result.user;
   } catch (error: any) {
-    console.error("Login error in firebase.ts:", error.code, error.message);
     if (error.code !== 'auth/popup-blocked' && 
         error.code !== 'auth/cancelled-popup-request' && 
         error.code !== 'auth/popup-closed-by-user') {
+      console.error("Login error in firebase.ts:", error.code, error.message);
       console.error("Detailed Login failure:", error);
+    } else {
+      console.log("Login cancelled by user or blocked:", error.code);
     }
     throw error;
   }

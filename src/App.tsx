@@ -463,7 +463,6 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
     { label: t('nav.portfolio'), id: 'portfolio' },
     { label: 'Prices', id: 'prices' },
     { label: 'Contact', id: 'contact' },
-    { label: 'Staff Portal', id: 'staff-portal' },
   ];
 
   const languages = [
@@ -594,7 +593,7 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
                 onClick={login}
                 disabled={isLoggingIn}
                 className={cn(
-                  "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all hover:scale-105 active:scale-95 flex items-center gap-2",
+                  "bg-blue-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-blue-700 transition-all hover:shadow-blue-200 hover:scale-105 active:scale-95 flex items-center gap-2",
                   isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
                 )}
               >
