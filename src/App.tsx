@@ -109,7 +109,7 @@ import { ThemeProvider, useTheme } from './lib/ThemeContext';
 
 // --- Types ---
 type Role = 'patient' | 'staff' | 'dentist' | 'admin' | 'owner';
-type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'staff-portal' | 'contact' | 'prices';
+type Screen = 'home' | 'experts' | 'portfolio' | 'booking' | 'dashboard' | 'contact' | 'prices';
 
 interface UserProfile {
   uid: string;
@@ -582,25 +582,17 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setScreen('staff-portal')}
-                className="bg-surface-container-low text-on-surface px-6 py-2.5 rounded-full text-sm font-semibold shadow-sm hover:bg-surface-container transition-all"
-              >
-                Staff Portal
-              </button>
-              <button 
-                onClick={login}
-                disabled={isLoggingIn}
-                className={cn(
-                  "bg-blue-600 text-white px-8 py-3 rounded-full text-sm font-bold shadow-lg hover:bg-blue-700 transition-all hover:shadow-blue-200 hover:scale-105 active:scale-95 flex items-center gap-2",
-                  isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
-                )}
-              >
-                {isLoggingIn ? <Sparkles className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-                Patient Portal
-              </button>
-            </div>
+            <button 
+              onClick={login}
+              disabled={isLoggingIn}
+              className={cn(
+                "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all active:scale-95 flex items-center gap-2",
+                isLoggingIn && "opacity-50 cursor-not-allowed scale-100"
+              )}
+            >
+              {isLoggingIn ? <Sparkles className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+              Sign In
+            </button>
           )}
         </div>
 
@@ -715,28 +707,20 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    <button 
-                      onClick={() => {
-                        setScreen('staff-portal');
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="bg-surface-container-low text-on-surface w-full py-4 rounded-2xl text-center font-bold shadow-sm flex items-center justify-center gap-2"
-                    >
-                      <Lock className="w-5 h-5" />
-                      Staff Portal
-                    </button>
-                    <button 
-                      onClick={() => {
-                        login();
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="bg-primary text-white w-full py-4 rounded-2xl text-center font-bold shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <Users className="w-5 h-5" />
-                      Patient Portal
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => {
+                      login();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={cn(
+                      "bg-primary text-white w-full py-4 rounded-2xl text-center font-bold shadow-lg flex items-center justify-center gap-2",
+                      isLoggingIn && "opacity-50 cursor-not-allowed"
+                    )}
+                    disabled={isLoggingIn}
+                  >
+                    {isLoggingIn ? <Sparkles className="w-5 h-5 animate-spin" /> : <Users className="w-5 h-5" />}
+                    Sign In
+                  </button>
                 )}
               </div>
             </div>
@@ -4223,15 +4207,15 @@ const Hero = ({ onBook }: { onBook: () => void }) => {
         transition={{ duration: 1, delay: 0.2 }}
         className="relative"
       >
-        <div className="aspect-[4/5] rounded-[40px] overflow-hidden shadow-2xl editorial-shadow">
+        <div className="aspect-[4/5] overflow-hidden [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]">
           <img 
             src="https://images.unsplash.com/photo-1606811841660-1b5168c34714?q=80&w=2070&auto=format&fit=crop" 
-            alt="Dental Technology"
-            className="w-full h-full object-cover"
+            alt=""
+            className="w-full h-full object-cover opacity-90 mix-blend-luminosity"
             referrerPolicy="no-referrer"
           />
         </div>
-        <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-3xl shadow-xl max-w-[240px] border border-surface-variant">
+        <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-md p-6 rounded-3xl shadow-lg max-w-[240px] border border-surface-variant">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
               <ShieldCheck className="w-6 h-6" />
@@ -4766,7 +4750,7 @@ function MainContent() {
       
       <main className="flex-grow">
         <AnimatePresence mode="wait">
-              {screen === 'home' && (
+          {screen === 'home' && (
                 <motion.div
                   key="home"
                   initial={{ opacity: 0 }}
@@ -4849,13 +4833,6 @@ function MainContent() {
             </div>
           )}
           
-          {screen === 'staff-portal' && (
-            <div className="pt-32 pb-20 bg-background min-h-screen">
-              <div className="max-w-7xl mx-auto px-6">
-                <StaffPortal />
-              </div>
-            </div>
-          )}
           
           {screen === 'dashboard' && (
             <div className="pt-32 pb-20 bg-background min-h-screen">
