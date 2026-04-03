@@ -236,6 +236,7 @@ interface StaffSession {
 interface StaffAuthContextType {
   staffSession: StaffSession | null;
   staffLogin: (username: string, pass: string) => Promise<void>;
+  staffLoginWithGoogle: () => Promise<void>;
   staffLogout: () => void;
   isStaffLoggingIn: boolean;
 }
@@ -267,13 +268,60 @@ export const StaffAuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const staffLoginWithGoogle = async () => {
+    setIsStaffLoggingIn(true);
+    try {
+      const user = await loginWithGoogle();
+      if (!user || !user.email) throw new Error('Google login failed');
+
+      // Check if user is in staff collection
+      const staffQuery = query(collection(db, 'staff'), where('email', '==', user.email));
+      const snapshot = await getDocs(staffQuery);
+      
+      if (snapshot.empty) {
+        // Check if it's the owner email
+        if (user.email === "the.tulba@gmail.com") {
+          const ownerData = {
+            id: user.uid,
+            username: 'owner',
+            name: 'Owner',
+            photo: user.photoURL || '',
+            role: 'owner'
+          };
+          setStaffSession({ token: 'google-auth', staff: ownerData });
+          localStorage.setItem('staff-session', JSON.stringify({ token: 'google-auth', staff: ownerData }));
+          return;
+        }
+        throw new Error('User is not authorized as staff');
+      }
+
+      const staffData = snapshot.docs[0].data();
+      const sessionData = {
+        token: 'google-auth',
+        staff: {
+          id: staffData.id,
+          username: staffData.username,
+          name: staffData.name,
+          photo: staffData.photo
+        }
+      };
+      setStaffSession(sessionData);
+      localStorage.setItem('staff-session', JSON.stringify(sessionData));
+    } catch (error: any) {
+      console.error("Google staff login error:", error);
+      throw error;
+    } finally {
+      setIsStaffLoggingIn(false);
+    }
+  };
+
   const staffLogout = () => {
     setStaffSession(null);
     localStorage.removeItem('staff-session');
   };
 
   return (
-    <StaffAuthContext.Provider value={{ staffSession, staffLogin, staffLogout, isStaffLoggingIn }}>
+    <StaffAuthContext.Provider value={{ staffSession, staffLogin, staffLoginWithGoogle, staffLogout, isStaffLoggingIn }}>
       {children}
     </StaffAuthContext.Provider>
   );
@@ -647,16 +695,13 @@ const Navbar = ({ activeScreen, setScreen, logo, onOpenSettings }: { activeScree
                 onClick={() => setScreen('staff-login')}
                 className="text-sm font-semibold text-on-surface hover:text-primary transition-colors px-4 py-2"
               >
-                Staff Portal
+                Staff Login
               </button>
               <button 
                 onClick={() => setScreen('patient-login')}
-                className={cn(
-                  "bg-primary text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-primary-container transition-all active:scale-95 flex items-center gap-2"
-                )}
+                className="text-sm font-semibold text-on-surface hover:text-primary transition-colors px-4 py-2"
               >
-                <Users className="w-4 h-4" />
-                Patient Portal
+                Patient Login
               </button>
             </div>
           )}
@@ -4747,49 +4792,54 @@ const PatientLoginForm = () => {
         className="bg-surface p-6 sm:p-8 rounded-3xl shadow-xl border border-outline-variant"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8" />
+          <div className="w-16 h-16 bg-teal-500 text-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <HeartPulse className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-headline text-on-surface">Patient Portal</h2>
-          <p className="text-on-surface-variant text-sm mt-2">Please log in with your patient credentials</p>
+          <h2 className="text-2xl font-headline text-teal-900">Patient Portal</h2>
+          <p className="text-teal-600 text-sm mt-2">Welcome back, please log in</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Patient ID</label>
+            <label className="block text-sm font-medium text-teal-800 mb-1 ml-1">Patient ID</label>
             <div className="relative">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant w-5 h-5" />
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-teal-400 w-5 h-5" />
               <input
                 type="text"
                 value={patientId}
                 onChange={(e) => setPatientId(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                className="w-full pl-12 pr-4 py-3 bg-teal-50 border border-teal-100 rounded-full focus:ring-2 focus:ring-teal-500 outline-none transition-all text-teal-900"
                 placeholder="Enter Patient ID"
                 required
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Password</label>
+            <label className="block text-sm font-medium text-teal-800 mb-1 ml-1">Password</label>
             <div className="relative">
-              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant w-5 h-5" />
+              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-teal-400 w-5 h-5" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                className="w-full pl-12 pr-4 py-3 bg-teal-50 border border-teal-100 rounded-full focus:ring-2 focus:ring-teal-500 outline-none transition-all text-teal-900"
                 placeholder="Enter password"
                 required
               />
             </div>
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-100 rounded-full flex items-center gap-3 text-red-700 text-sm">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              {error}
+            </div>
+          )}
           <button
             type="submit"
             disabled={isPatientLoggingIn}
-            className="w-full bg-primary text-white py-3 rounded-2xl font-semibold hover:bg-primary-container transition-all disabled:opacity-50"
+            className="w-full bg-teal-600 text-white py-4 rounded-full font-bold hover:bg-teal-700 transition-all disabled:opacity-50 shadow-md"
           >
-            {isPatientLoggingIn ? <Sparkles className="w-5 h-5 animate-spin mx-auto" /> : 'Log In'}
+            {isPatientLoggingIn ? <Sparkles className="w-5 h-5 animate-spin mx-auto" /> : 'Access My Records'}
           </button>
         </form>
       </motion.div>
@@ -5046,7 +5096,7 @@ const StaffPortal = () => {
 };
 
 const StaffLoginForm = () => {
-  const { staffLogin, isStaffLoggingIn } = useStaffAuth();
+  const { staffLogin, staffLoginWithGoogle, isStaffLoggingIn } = useStaffAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -5061,6 +5111,15 @@ const StaffLoginForm = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setError('');
+    try {
+      await staffLoginWithGoogle();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto">
       <motion.div 
@@ -5069,23 +5128,23 @@ const StaffLoginForm = () => {
         className="bg-surface p-6 sm:p-8 rounded-3xl shadow-xl border border-outline-variant"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Lock className="w-8 h-8" />
+          <div className="w-16 h-16 bg-slate-800 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <ShieldCheck className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-headline text-on-surface">Staff Portal</h2>
-          <p className="text-on-surface-variant text-sm mt-2">Please log in with your staff credentials</p>
+          <h2 className="text-2xl font-headline text-slate-900">Staff Portal</h2>
+          <p className="text-slate-600 text-sm mt-2">Authorized personnel only</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Username</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1 ml-1">Username</label>
             <div className="relative">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant w-5 h-5" />
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-slate-800 outline-none transition-all text-slate-900"
                 placeholder="Enter username"
                 required
               />
@@ -5093,14 +5152,14 @@ const StaffLoginForm = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-1 ml-1">Password</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1 ml-1">Password</label>
             <div className="relative">
-              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant w-5 h-5" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-2xl focus:ring-2 focus:ring-primary outline-none transition-all text-on-surface"
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-slate-800 outline-none transition-all text-slate-900"
                 placeholder="Enter password"
                 required
               />
@@ -5108,7 +5167,7 @@ const StaffLoginForm = () => {
           </div>
 
           {error && (
-            <div className="p-4 bg-error/10 border border-error/20 rounded-2xl flex items-center gap-3 text-error text-sm">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-700 text-sm">
               <AlertCircle className="w-5 h-5 shrink-0" />
               {error}
             </div>
@@ -5117,18 +5176,37 @@ const StaffLoginForm = () => {
           <button
             type="submit"
             disabled={isStaffLoggingIn}
-            className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold hover:bg-primary-container transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg"
           >
             {isStaffLoggingIn ? (
               <Sparkles className="w-5 h-5 animate-spin" />
             ) : (
               <>
-                Login to Portal
+                Secure Login
                 <ArrowRight className="w-5 h-5" />
               </>
             )}
           </button>
         </form>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-slate-500">Or continue with</span>
+            </div>
+          </div>
+          <button 
+            onClick={handleGoogleLogin}
+            disabled={isStaffLoggingIn}
+            className="w-full mt-6 bg-white border border-slate-200 text-slate-700 p-4 rounded-2xl font-bold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 shadow-sm"
+          >
+            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+            Sign in with Google
+          </button>
+        </div>
       </motion.div>
     </div>
   );
