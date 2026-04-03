@@ -3308,146 +3308,91 @@ const StaffDashboard = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-headline">{t('dashboard.staff.title')}</h2>
-          <p className="text-on-surface-variant">Manage the master calendar and patient check-ins.</p>
-        </div>
-        <div className="flex gap-4">
-          {experts.length === 0 && (
-            <button 
-              onClick={seedExperts}
-              className="bg-surface-container text-primary px-6 py-3 rounded-2xl font-bold flex items-center gap-2"
+    <div className="flex h-screen bg-surface-container-low text-on-surface">
+      {/* Vertical Sidebar */}
+      <div className="w-64 bg-surface border-r border-surface-variant p-6 flex flex-col gap-6">
+        <div className="text-2xl font-headline text-primary">Dentolize</div>
+        <nav className="flex flex-col gap-2">
+          {['Appointments', 'Finances', 'Inventory'].map((item) => (
+            <button
+              key={item}
+              onClick={() => setTab(item.toLowerCase() as any)}
+              className={cn(
+                "px-4 py-3 rounded-xl text-left font-bold transition-all",
+                tab === item.toLowerCase() ? "bg-primary text-on-primary" : "text-on-surface-variant hover:bg-surface-container"
+              )}
             >
-              Seed 6 Experts
+              {item}
             </button>
-          )}
-          <button className="bg-primary text-white px-6 py-3 rounded-2xl font-bold shadow-lg flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            New Appointment
-          </button>
-        </div>
+          ))}
+        </nav>
       </div>
 
-      <div className="flex gap-4 border-b border-surface-variant overflow-x-auto">
-          <button 
-            onClick={() => setTab('appointments')}
-            className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'appointments' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
-          >
-            {t('dashboard.staff.appointments')}
-          </button>
-          <button 
-            onClick={() => setTab('experts')}
-            className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'experts' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
-          >
-            {t('dashboard.staff.experts')}
-          </button>
-        {profile?.role === 'owner' && (
+      {/* Main Content Area */}
+      <div className="flex-grow flex gap-6 p-6 overflow-hidden">
+        {tab === 'appointments' && (
           <>
-            <button 
-              onClick={() => setTab('team')}
-              className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'team' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
-            >
-              Team Management
-            </button>
-            <button 
-              onClick={() => setTab('import')}
-              className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'import' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
-            >
-              Data Import
-            </button>
-            <button 
-              onClick={() => setTab('staff')}
-              className={cn("pb-4 px-4 font-bold transition-all whitespace-nowrap", tab === 'staff' ? "text-primary border-b-2 border-primary" : "text-on-surface-variant")}
-            >
-              Staff Management
-            </button>
-          </>
-        )}
-      </div>
-
-      {tab === 'appointments' && (
-        <div className="flex gap-8">
-          {/* Main Content: Appointments */}
-          <div className={cn("flex-grow bg-white rounded-[32px] border border-surface-variant overflow-hidden shadow-sm", !isSidebarOpen && "lg:col-span-3")}>
-            <div className="p-6 border-b border-surface-variant flex items-center justify-between">
-              <h3 className="font-headline text-xl">Today's Schedule</h3>
-              <button 
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 bg-surface-container rounded-lg text-on-surface-variant hover:text-primary transition-colors"
-              >
-                {isSidebarOpen ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-              </button>
-            </div>
-            <div className="divide-y divide-surface-variant">
-              {appointments.map(a => (
-                <div key={a.id} className="p-6 hover:bg-surface-container-low transition-colors flex items-center gap-4">
-                  <div className="text-sm font-bold w-20">{format(a.startTime.toDate(), 'p')}</div>
-                  <div className="flex-grow">
-                    <button 
-                      onClick={() => setSelectedPatientId(a.patientId)}
-                      className="font-bold text-primary hover:underline block"
-                    >
-                      {a.patientName}
-                    </button>
-                    <div className="text-xs text-on-surface-variant">{a.dentistName} • {a.type}</div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
-                      a.status === 'completed' ? "bg-green-100 text-green-700" : 
-                      a.status === 'cancelled' ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-                    )}>
-                      {a.status}
-                    </span>
-                    <div className="flex gap-1">
-                      <button className="p-1.5 bg-surface-container rounded-lg text-on-surface-variant hover:text-primary transition-colors">
-                        <Smartphone className="w-4 h-4" />
-                      </button>
-                      <button className="p-1.5 bg-surface-container rounded-lg text-green-600 hover:text-green-700 transition-colors">
-                        <MessageSquare className="w-4 h-4" />
-                      </button>
+            {/* Appointments Center Column */}
+            <div className="flex-grow bg-white rounded-[32px] border border-surface-variant shadow-sm flex flex-col overflow-hidden">
+              <div className="p-6 border-b border-surface-variant flex items-center justify-between">
+                <h3 className="font-headline text-2xl">Appointments</h3>
+                <div className="flex gap-2">
+                  <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">Confirmed</span>
+                  <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-bold">Pending</span>
+                </div>
+              </div>
+              <div className="flex-grow overflow-y-auto divide-y divide-surface-variant">
+                {appointments.map(a => (
+                  <div key={a.id} className="p-6 hover:bg-surface-container-low transition-colors flex items-center gap-4">
+                    <div className="text-sm font-bold w-20">{format(a.startTime.toDate(), 'p')}</div>
+                    <div className="flex-grow">
+                      <div className="font-bold text-primary">{a.patientName}</div>
+                      <div className="text-xs text-on-surface-variant">{a.dentistName} • {a.type}</div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className={cn(
+                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
+                        a.status === 'completed' ? "bg-green-100 text-green-700" : 
+                        a.status === 'cancelled' ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                      )}>
+                        {a.status}
+                      </span>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right Sidebar: Invoices */}
-          {isSidebarOpen && (
-            <div className="w-80 bg-white rounded-[32px] border border-surface-variant overflow-hidden shadow-sm shrink-0">
-              <div className="p-6 border-b border-surface-variant flex items-center justify-between">
-                <h3 className="font-headline text-xl">Recent Invoices</h3>
+                ))}
               </div>
-              <div className="divide-y divide-surface-variant">
-                {/* Placeholder for Invoices - will be replaced with real data */}
+            </div>
+
+            {/* Invoices Right Column */}
+            <div className="w-96 bg-white rounded-[32px] border border-surface-variant shadow-sm flex flex-col overflow-hidden">
+              <div className="p-6 border-b border-surface-variant">
+                <h3 className="font-headline text-2xl">Recent Invoices</h3>
+              </div>
+              <div className="flex-grow overflow-y-auto divide-y divide-surface-variant">
                 <div className="p-6 text-sm flex items-center justify-between">
                   <div>
                     <div className="font-bold">Patient Name #984</div>
-                    <div className="text-xs text-on-surface-variant">1,200 EGP • Pending</div>
+                    <div className="text-xs text-on-surface-variant">21,000 EGP • Pending</div>
                   </div>
-                  <button className="text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg">Add Payment</button>
+                  <button className="text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary-container">Add Payment</button>
                 </div>
                 <div className="p-6 text-sm flex items-center justify-between">
                   <div>
                     <div className="font-bold">Patient Name #985</div>
-                    <div className="text-xs text-on-surface-variant">3,500 EGP • Paid</div>
+                    <div className="text-xs text-on-surface-variant">26,000 EGP • Paid</div>
                   </div>
-                  <button className="text-xs font-bold bg-surface-container text-on-surface-variant px-3 py-1.5 rounded-lg">View</button>
+                  <button className="text-xs font-bold bg-surface-container text-on-surface-variant px-3 py-1.5 rounded-lg hover:bg-surface-container-high">View</button>
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </>
+        )}
 
-
-{tab === 'experts' && <ExpertManagement experts={experts} />}
-      {tab === 'team' && <TeamManagement />}
-      {tab === 'import' && <DataImport />}
-      {tab === 'staff' && <StaffManagement />}
+        {tab === 'experts' && <ExpertManagement experts={experts} />}
+        {tab === 'team' && <TeamManagement />}
+        {tab === 'import' && <DataImport />}
+        {tab === 'staff' && <StaffManagement />}
+      </div>
     </div>
   );
 };
