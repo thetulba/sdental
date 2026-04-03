@@ -70,6 +70,7 @@ async function startServer() {
 
   // Staff Management Routes
   app.post("/api/staff/create", upload.single('photo'), async (req: any, res) => {
+    console.log("Received request for /api/staff/create");
     const { username, password, name, adminUid } = req.body;
     const photo = req.file;
 
